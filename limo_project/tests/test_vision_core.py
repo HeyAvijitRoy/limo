@@ -262,3 +262,52 @@ def test_reinforced_learning_search_math():
     match3 = [m for m in matches if m["embedding_id"] == 103][0]
     assert pytest.approx(match1["distance"]) == 0.0
     assert pytest.approx(match3["distance"]) == 0.2
+
+def test_sorting_and_grouping_logic():
+    # Mock files
+    item1 = {
+        "absolute_path": "C:/photos/vacation/pic1.jpg",
+        "file_name": "pic1.jpg",
+        "date_modified": 1000.0
+    }
+    item2 = {
+        "absolute_path": "C:/photos/vacation/pic2.jpg",
+        "file_name": "pic2.jpg",
+        "date_modified": 2000.0
+    }
+    item3 = {
+        "absolute_path": "C:/photos/wedding/abc.jpg",
+        "file_name": "abc.jpg",
+        "date_modified": 1500.0
+    }
+    
+    items = [item1, item2, item3]
+    
+    # 1. Test Date sorting
+    # Newest first
+    items_date_desc = sorted(items, key=lambda x: x["date_modified"], reverse=True)
+    assert items_date_desc[0]["file_name"] == "pic2.jpg"
+    assert items_date_desc[1]["file_name"] == "abc.jpg"
+    assert items_date_desc[2]["file_name"] == "pic1.jpg"
+    
+    # Oldest first
+    items_date_asc = sorted(items, key=lambda x: x["date_modified"])
+    assert items_date_asc[0]["file_name"] == "pic1.jpg"
+    
+    # 2. Test Name sorting
+    items_name_asc = sorted(items, key=lambda x: x["file_name"].lower())
+    assert items_name_asc[0]["file_name"] == "abc.jpg"
+    assert items_name_asc[1]["file_name"] == "pic1.jpg"
+    
+    # 3. Test Folder grouping logic
+    folders = {}
+    for item in items:
+        parent = os.path.dirname(item["absolute_path"])
+        if parent not in folders:
+            folders[parent] = []
+        folders[parent].append(item)
+        
+    assert "C:/photos/vacation" in folders
+    assert "C:/photos/wedding" in folders
+    assert len(folders["C:/photos/vacation"]) == 2
+    assert len(folders["C:/photos/wedding"]) == 1

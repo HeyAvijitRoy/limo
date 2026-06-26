@@ -8,8 +8,8 @@ from PyQt6.QtWidgets import (
     QPushButton, QFileDialog, QProgressBar, QSlider, QComboBox, QScrollArea,
     QGridLayout, QFrame, QSplitter, QMessageBox, QMenu, QSystemTrayIcon, QButtonGroup
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize, QTimer, QEvent
-from PyQt6.QtGui import QPixmap, QIcon, QAction, QPainter, QColor, QBrush, QPen
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize, QTimer, QEvent, QPoint
+from PyQt6.QtGui import QPixmap, QIcon, QAction, QPainter, QColor, QBrush, QPen, QPolygon
 from limo_project.engine.database import DatabaseManager
 from limo_project.engine.vision_core import (
     scan_directory_generator,
@@ -30,9 +30,17 @@ class IndexThread(QThread):
         self.directory = directory
         self.db = db_manager
         self._is_running = True
+        self._is_paused = False
 
     def stop(self):
         self._is_running = False
+        self._is_paused = False
+
+    def pause(self):
+        self._is_paused = True
+
+    def resume(self):
+        self._is_paused = False
 
     def run(self):
         all_files = []
@@ -48,6 +56,11 @@ class IndexThread(QThread):
         skipped = 0
 
         for idx, file_path in enumerate(all_files):
+            while self._is_paused:
+                if not self._is_running:
+                    return
+                self.msleep(100)
+
             if not self._is_running:
                 break
 
@@ -183,6 +196,237 @@ class CategoryPill(QPushButton):
         """)
 
 
+class ViewModePill(QPushButton):
+    def __init__(self, text, parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setStyleSheet("""
+            QPushButton {
+                background-color: #1a1a22;
+                border: 1px solid #3a3a4c;
+                border-radius: 4px;
+                padding: 6px 12px;
+                color: #a0a0b0;
+                font-weight: bold;
+                font-size: 11px;
+            }
+            QPushButton:hover {
+                border-color: #6c5ce7;
+                color: #ffffff;
+            }
+            QPushButton:checked {
+                background-color: #6c5ce7;
+                border-color: #6c5ce7;
+                color: #ffffff;
+            }
+        """)
+
+
+class FolderTile(QWidget):
+    doubleClicked = pyqtSignal(str)
+
+    def __init__(self, absolute_path, name, file_count, parent=None):
+        super().__init__(parent)
+        self.absolute_path = absolute_path
+        self.setFixedWidth(160)
+        self.setFixedHeight(180)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+
+        # Folder Icon Draw
+        self.icon_label = QLabel(self)
+        self.icon_label.setFixedSize(140, 95)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        pixmap = QPixmap(90, 70)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor("#e1b12c"))
+        painter.setPen(Qt.PenStyle.NoPen)
+        # Folder back tab
+        painter.drawRect(5, 5, 30, 12)
+        # Folder main body
+        painter.drawRect(5, 14, 80, 48)
+        painter.end()
+
+        self.icon_label.setPixmap(pixmap)
+
+        self.name_label = QLabel(name, self)
+        self.name_label.setStyleSheet("font-weight: bold; color: #ffffff; font-size: 12px;")
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        metrics = self.name_label.fontMetrics()
+        self.name_label.setText(metrics.elidedText(name, Qt.TextElideMode.ElideRight, 140))
+
+        self.count_label = QLabel(f"{file_count} items", self)
+        self.count_label.setStyleSheet("color: #a0a0b0; font-size: 11px;")
+        self.count_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        layout.addWidget(self.icon_label)
+        layout.addWidget(self.name_label)
+        layout.addWidget(self.count_label)
+
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #1e1e24;
+                border: 1px solid #2d2d38;
+                border-radius: 8px;
+            }
+            QWidget:hover {
+                background-color: #262630;
+                border: 1px solid #6c5ce7;
+            }
+        """)
+
+    def mouseDoubleClickEvent(self, event):
+        self.doubleClicked.emit(self.absolute_path)
+
+
+class UpFolderTile(QWidget):
+    doubleClicked = pyqtSignal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedWidth(160)
+        self.setFixedHeight(180)
+
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(6)
+
+        self.icon_label = QLabel(self)
+        self.icon_label.setFixedSize(140, 95)
+        self.icon_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        pixmap = QPixmap(90, 70)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor("#7f8c8d"))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawRect(5, 5, 30, 12)
+        painter.drawRect(5, 14, 80, 48)
+        
+        # Up Arrow Overlay using native QPoint imports
+        painter.setBrush(QColor("#ffffff"))
+        points = [
+            QPoint(45, 20),
+            QPoint(35, 32),
+            QPoint(41, 32),
+            QPoint(41, 48),
+            QPoint(49, 48),
+            QPoint(49, 32),
+            QPoint(55, 32)
+        ]
+        painter.drawPolygon(QPolygon(points))
+        painter.end()
+
+        self.icon_label.setPixmap(pixmap)
+
+        self.name_label = QLabel(".. (Up One Level)", self)
+        self.name_label.setStyleSheet("font-weight: bold; color: #ffffff; font-size: 12px;")
+        self.name_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+
+        layout.addWidget(self.icon_label)
+        layout.addWidget(self.name_label)
+        layout.addStretch()
+
+        self.setStyleSheet("""
+            QWidget {
+                background-color: #1e1e24;
+                border: 1px solid #2d2d38;
+                border-radius: 8px;
+            }
+            QWidget:hover {
+                background-color: #262630;
+                border: 1px solid #6c5ce7;
+            }
+        """)
+
+    def mouseDoubleClickEvent(self, event):
+        self.doubleClicked.emit()
+
+
+class SpinnerWidget(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setFixedSize(50, 50)
+        self.angle = 0
+        
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.rotate)
+        self.timer.start(30) # Rotate every 30ms
+
+    def rotate(self):
+        self.angle = (self.angle + 12) % 360
+        self.update()
+
+    def paintEvent(self, event):
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        pen = QPen(QColor("#6c5ce7"))
+        pen.setWidth(4)
+        painter.setPen(pen)
+        
+        rect = self.rect().adjusted(5, 5, -5, -5)
+        # Draw dynamic spinning arc (270 degrees length)
+        painter.drawArc(rect, self.angle * 16, 270 * 16)
+        painter.end()
+
+
+class LoadingOverlay(QWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
+        self.setStyleSheet("background-color: rgba(12, 12, 16, 175);")
+        
+        if parent:
+            parent.installEventFilter(self)
+        
+        layout = QVBoxLayout(self)
+        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        
+        self.container = QWidget(self)
+        self.container.setFixedSize(220, 140)
+        self.container.setStyleSheet("""
+            QWidget {
+                background-color: #1e1e24; 
+                border: 1px solid #2d2d38; 
+                border-radius: 8px;
+            }
+        """)
+        
+        container_layout = QVBoxLayout(self.container)
+        container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        container_layout.setContentsMargins(15, 15, 15, 15)
+        
+        self.spinner = SpinnerWidget(self.container)
+        container_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        
+        self.lbl_text = QLabel("Sorting & Filtering...", self.container)
+        self.lbl_text.setStyleSheet("color: #e0e0e6; font-weight: bold; font-size: 13px; border: none; background-color: transparent;")
+        self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        container_layout.addWidget(self.lbl_text)
+        
+        layout.addWidget(self.container)
+        self.hide()
+
+    def eventFilter(self, obj, event):
+        if obj == self.parentWidget() and event.type() == QEvent.Type.Resize:
+            self.setGeometry(self.parentWidget().rect())
+        return super().eventFilter(obj, event)
+
+    def showEvent(self, event):
+        if self.parentWidget():
+            self.setGeometry(self.parentWidget().rect())
+        super().showEvent(event)
+
+
 class ImageTile(QWidget):
     doubleClicked = pyqtSignal(str)
     feedbackClicked = pyqtSignal(str, int, int) # file_path, embedding_id, is_match
@@ -192,7 +436,6 @@ class ImageTile(QWidget):
         self.file_path = file_path
         self.embedding_id = embedding_id
         
-        # If low confidence match (< 60%, i.e. distance > 0.40), render feedback controls
         self.has_feedback = (distance is not None and distance > 0.40 and embedding_id is not None)
 
         self.setFixedWidth(160)
@@ -243,7 +486,6 @@ class ImageTile(QWidget):
             self.dist_label.setStyleSheet("color: #00b894; font-size: 11px; font-weight: bold;")
             layout.addWidget(self.dist_label)
             
-            # Interactive reinforced learning feedback layout
             if self.has_feedback:
                 feedback_container = QWidget(self)
                 feedback_layout = QHBoxLayout(feedback_container)
@@ -326,6 +568,9 @@ class MainWindow(QMainWindow):
         self.selected_directory = ""
         self.is_background_sync = False
         
+        self.view_mode = "library"
+        self.current_folder = None
+        
         self.categories_list = ["All", "Portraits", "Landscapes", "Screenshots/Documents", "Uncategorized"]
         self.selected_category = "All"
 
@@ -341,7 +586,7 @@ class MainWindow(QMainWindow):
 
         self.auto_sync_timer = QTimer(self)
         self.auto_sync_timer.timeout.connect(self.trigger_auto_sync)
-        self.auto_sync_timer.start(180000) # 3 minutes
+        self.auto_sync_timer.start(180000)
 
     def setup_styles(self):
         self.setStyleSheet("""
@@ -480,9 +725,43 @@ class MainWindow(QMainWindow):
         main_layout.setContentsMargins(15, 15, 15, 15)
         main_layout.setSpacing(12)
 
+        # Sync Dashboard layout (Progress + Pause + Cancel)
+        self.sync_dashboard = QWidget(self)
+        self.sync_dashboard.setVisible(False)
+        sync_layout = QHBoxLayout(self.sync_dashboard)
+        sync_layout.setContentsMargins(0, 0, 0, 0)
+        sync_layout.setSpacing(8)
+
         self.progress_bar = QProgressBar(self)
-        self.progress_bar.setVisible(False)
-        main_layout.addWidget(self.progress_bar)
+        sync_layout.addWidget(self.progress_bar, stretch=1)
+
+        self.btn_pause_sync = QPushButton("Pause", self)
+        self.btn_pause_sync.setStyleSheet("""
+            QPushButton {
+                background-color: #d35400;
+                color: #ffffff;
+            }
+            QPushButton:hover {
+                background-color: #e67e22;
+            }
+        """)
+        self.btn_pause_sync.clicked.connect(self.toggle_pause_sync)
+        sync_layout.addWidget(self.btn_pause_sync)
+
+        self.btn_cancel_sync = QPushButton("Cancel", self)
+        self.btn_cancel_sync.setStyleSheet("""
+            QPushButton {
+                background-color: #c0392b;
+                color: #ffffff;
+            }
+            QPushButton:hover {
+                background-color: #e74c3c;
+            }
+        """)
+        self.btn_cancel_sync.clicked.connect(self.cancel_sync)
+        sync_layout.addWidget(self.btn_cancel_sync)
+
+        main_layout.addWidget(self.sync_dashboard)
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
         
@@ -535,14 +814,50 @@ class MainWindow(QMainWindow):
         right_layout.setContentsMargins(12, 12, 12, 12)
         right_layout.setSpacing(10)
 
+        # Controls Header Layout (Pills + Sorting + View Toggles)
+        header_controls_layout = QHBoxLayout()
+        header_controls_layout.setContentsMargins(0, 0, 0, 0)
+        header_controls_layout.setSpacing(10)
+
         self.category_container = QWidget(self)
         self.category_layout = QHBoxLayout(self.category_container)
         self.category_layout.setContentsMargins(0, 0, 0, 0)
         self.category_layout.setSpacing(8)
-        
         self.setup_category_filters()
-        right_layout.addWidget(self.category_container)
+        header_controls_layout.addWidget(self.category_container)
 
+        header_controls_layout.addStretch()
+
+        # Sorting ComboBox Selector
+        self.combo_sort = QComboBox(self)
+        self.combo_sort.addItems([
+            "Sort: Date (Newest)",
+            "Sort: Date (Oldest)",
+            "Sort: Name (A-Z)",
+            "Sort: Name (Z-A)"
+        ])
+        self.combo_sort.currentTextChanged.connect(self.trigger_search)
+        self.combo_sort.setFixedWidth(150)
+        header_controls_layout.addWidget(self.combo_sort)
+
+        # View Mode toggle button group
+        self.view_mode_group = QButtonGroup(self)
+        self.view_mode_group.setExclusive(True)
+
+        self.btn_view_library = ViewModePill("Library", self)
+        self.btn_view_library.setChecked(True)
+        self.btn_view_library.clicked.connect(self.set_library_view_mode)
+        self.view_mode_group.addButton(self.btn_view_library)
+        header_controls_layout.addWidget(self.btn_view_library)
+
+        self.btn_view_folder = ViewModePill("Folders", self)
+        self.btn_view_folder.clicked.connect(self.set_folder_view_mode)
+        self.view_mode_group.addButton(self.btn_view_folder)
+        header_controls_layout.addWidget(self.btn_view_folder)
+
+        right_layout.addLayout(header_controls_layout)
+
+        # Scroll Area
         self.scroll_area = QScrollArea(self)
         self.scroll_area.setWidgetResizable(True)
         
@@ -559,6 +874,9 @@ class MainWindow(QMainWindow):
         
         splitter.setSizes([280, 820])
         main_layout.addWidget(splitter)
+
+        # Loading Overlay (Instantiated on central widget to cover the whole UI layout)
+        self.loading_overlay = LoadingOverlay(central_widget)
 
     def setup_category_filters(self):
         while self.category_layout.count():
@@ -578,19 +896,12 @@ class MainWindow(QMainWindow):
                 pill.clicked.connect(self.on_category_pill_clicked)
                 self.pill_group.addButton(pill)
                 self.category_layout.addWidget(pill)
-            
-            self.category_layout.addStretch()
         else:
-            lbl_filter = QLabel("Category Filter:", self)
-            lbl_filter.setStyleSheet("font-weight: bold; color: #a0a0b0;")
-            self.category_layout.addWidget(lbl_filter)
-
             combo = QComboBox(self)
             combo.addItems(self.categories_list)
             combo.setCurrentText(self.selected_category)
             combo.currentTextChanged.connect(self.on_category_combo_changed)
             self.category_layout.addWidget(combo)
-            self.category_layout.addStretch()
 
     def on_category_pill_clicked(self):
         sender = self.sender()
@@ -600,6 +911,24 @@ class MainWindow(QMainWindow):
 
     def on_category_combo_changed(self, text):
         self.selected_category = text
+        self.trigger_search()
+
+    def set_library_view_mode(self):
+        self.view_mode = "library"
+        self.current_folder = None
+        self.trigger_search()
+
+    def set_folder_view_mode(self):
+        self.view_mode = "folder"
+        self.current_folder = None
+        self.trigger_search()
+
+    def enter_folder(self, path):
+        self.current_folder = path
+        self.trigger_search()
+
+    def exit_folder(self):
+        self.current_folder = None
         self.trigger_search()
 
     def init_system_tray(self):
@@ -686,7 +1015,10 @@ class MainWindow(QMainWindow):
 
         if not is_background:
             self.progress_bar.setValue(0)
-            self.progress_bar.setVisible(True)
+            self.sync_dashboard.setVisible(True)
+            self.btn_pause_sync.setText("Pause")
+            self.btn_pause_sync.setEnabled(True)
+            self.btn_cancel_sync.setEnabled(True)
             self.status_label.setText("Scanning media directory...")
         else:
             self.status_label.setText("Background checking for updates...")
@@ -697,13 +1029,35 @@ class MainWindow(QMainWindow):
         self.index_thread.finished.connect(self.on_index_finished)
         self.index_thread.start()
 
+    def toggle_pause_sync(self):
+        if not self.index_thread or not self.index_thread.isRunning():
+            return
+
+        if not self.index_thread._is_paused:
+            self.index_thread.pause()
+            self.btn_pause_sync.setText("Resume")
+            self.status_label.setText("Sync paused.")
+        else:
+            self.index_thread.resume()
+            self.btn_pause_sync.setText("Pause")
+            self.status_label.setText("Scanning media directory...")
+
+    def cancel_sync(self):
+        if not self.index_thread or not self.index_thread.isRunning():
+            return
+
+        self.btn_pause_sync.setEnabled(False)
+        self.btn_cancel_sync.setEnabled(False)
+        self.index_thread.stop()
+        self.status_label.setText("Sync cancelled. Cleaning up thread...")
+
     def on_index_step(self, step, filepath):
         if not self.is_background_sync:
             self.progress_bar.setValue(step)
             self.status_label.setText(f"Scanning: {os.path.basename(filepath)}")
 
     def on_index_finished(self, added, skipped):
-        self.progress_bar.setVisible(False)
+        self.sync_dashboard.setVisible(False)
         
         if not self.is_background_sync:
             self.status_label.setText("Sync complete.")
@@ -796,36 +1150,79 @@ class MainWindow(QMainWindow):
             self.trigger_search()
 
     def trigger_search(self):
-        category = self.selected_category
+        # 1. Show the loading overlay
+        if self.centralWidget():
+            self.loading_overlay.setGeometry(self.centralWidget().rect())
+        self.loading_overlay.show()
+        self.loading_overlay.raise_()
         
-        if self.ref_embedding is not None:
-            db_embeddings = self.db.get_all_embeddings()
-            feedbacks = self.db.get_feedback_for_reference(self.ref_file_path)
-            tolerance = self.slider_tolerance.value() / 100.0
-            matches = search_similar_faces(self.ref_embedding, db_embeddings, feedbacks=feedbacks, tolerance=tolerance)
+        # 2. Schedule the search & sorting computation 50ms later to allow overlay painting
+        QTimer.singleShot(50, self.perform_search_and_populate)
+
+    def perform_search_and_populate(self):
+        try:
+            category = self.selected_category
             
-            if category.lower() != 'all':
-                matches = [m for m in matches if m["category_label"] == category]
+            # Retrieve items
+            if self.ref_embedding is not None:
+                db_embeddings = self.db.get_all_embeddings()
+                feedbacks = self.db.get_feedback_for_reference(self.ref_file_path)
+                tolerance = self.slider_tolerance.value() / 100.0
+                items = search_similar_faces(self.ref_embedding, db_embeddings, feedbacks=feedbacks, tolerance=tolerance)
                 
-            self.populate_grid(matches)
-            self.status_label.setText(f"Search results: {len(matches)} matching face(s) found.")
-        else:
-            items = self.db.get_media_files(category=category)
-            self.populate_grid(items)
-            self.status_label.setText(f"Showing {len(items)} file(s).")
+                if category.lower() != 'all':
+                    items = [m for m in items if m["category_label"] == category]
+            else:
+                items = self.db.get_media_files(category=category)
+
+            # Sort
+            sort_type = self.combo_sort.currentText()
+            if sort_type == "Sort: Date (Newest)":
+                items.sort(key=lambda x: x.get("date_modified", 0), reverse=True)
+            elif sort_type == "Sort: Date (Oldest)":
+                items.sort(key=lambda x: x.get("date_modified", 0))
+            elif sort_type == "Sort: Name (A-Z)":
+                items.sort(key=lambda x: x.get("file_name", "").lower())
+            elif sort_type == "Sort: Name (Z-A)":
+                items.sort(key=lambda x: x.get("file_name", "").lower(), reverse=True)
+
+            # Render
+            if self.view_mode == "library":
+                self.populate_grid(items)
+                if self.ref_embedding is not None:
+                    self.status_label.setText(f"Search results: {len(items)} matching face(s) found.")
+                else:
+                    self.status_label.setText(f"Showing {len(items)} file(s).")
+            else:
+                if self.current_folder is None:
+                    folders_dict = {}
+                    for item in items:
+                        parent_path = os.path.dirname(item["absolute_path"])
+                        if parent_path not in folders_dict:
+                            folders_dict[parent_path] = []
+                        folders_dict[parent_path].append(item)
+                    
+                    folder_paths = list(folders_dict.keys())
+                    is_reverse = "Z-A" in sort_type or "Newest" in sort_type
+                    folder_paths.sort(key=lambda x: os.path.basename(x).lower(), reverse=is_reverse)
+                    
+                    self.populate_folder_grid(folders_dict, folder_paths)
+                    self.status_label.setText(f"Showing {len(folder_paths)} folders.")
+                else:
+                    folder_items = [item for item in items if os.path.dirname(item["absolute_path"]) == self.current_folder]
+                    self.populate_grid(folder_items, show_up_level=True)
+                    self.status_label.setText(f"Showing {len(folder_items)} file(s) in '{os.path.basename(self.current_folder)}'.")
+        finally:
+            # 3. Hide loading overlay
+            self.loading_overlay.hide()
 
     def on_feedback_received(self, file_path, embedding_id, is_match):
         if not self.ref_file_path:
             return
             
-        # Record feedback in DB
         self.db.add_face_feedback(self.ref_file_path, embedding_id, is_match)
-        
-        # Display reinforcement status message
         action = "confirmed as match 👍" if is_match == 1 else "rejected as match 👎"
         self.status_label.setText(f"Feedback recorded: Face {action}. Reinforcing search model...")
-        
-        # Instantly update search results
         self.trigger_search()
 
     def load_all_media_from_db(self):
@@ -837,17 +1234,21 @@ class MainWindow(QMainWindow):
             if child.widget():
                 child.widget().deleteLater()
 
-    def populate_grid(self, items):
+    def populate_grid(self, items, show_up_level=False):
         self.clear_grid()
-        if not items:
-            return
 
         width = self.scroll_area.viewport().width()
         if width <= 0:
             width = 820
-        
         tile_width = 175
         columns = max(1, width // tile_width)
+
+        start_idx = 0
+        if show_up_level:
+            up_tile = UpFolderTile(self)
+            up_tile.doubleClicked.connect(self.exit_folder)
+            self.grid_layout.addWidget(up_tile, 0, 0)
+            start_idx = 1
 
         for idx, item in enumerate(items):
             tile = ImageTile(
@@ -861,6 +1262,31 @@ class MainWindow(QMainWindow):
             )
             tile.doubleClicked.connect(self.open_file_in_explorer)
             tile.feedbackClicked.connect(self.on_feedback_received)
+            
+            grid_pos = start_idx + idx
+            row = grid_pos // columns
+            col = grid_pos % columns
+            self.grid_layout.addWidget(tile, row, col)
+
+    def populate_folder_grid(self, folders_dict, sorted_paths):
+        self.clear_grid()
+        if not sorted_paths:
+            return
+
+        width = self.scroll_area.viewport().width()
+        if width <= 0:
+            width = 820
+        tile_width = 175
+        columns = max(1, width // tile_width)
+
+        for idx, path in enumerate(sorted_paths):
+            name = os.path.basename(path)
+            if not name:
+                name = path
+            count = len(folders_dict[path])
+            
+            tile = FolderTile(absolute_path=path, name=name, file_count=count, parent=self)
+            tile.doubleClicked.connect(self.enter_folder)
             
             row = idx // columns
             col = idx % columns
