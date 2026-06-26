@@ -6,10 +6,11 @@ from PIL import Image
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QLineEdit,
     QPushButton, QFileDialog, QProgressBar, QSlider, QComboBox, QScrollArea,
-    QGridLayout, QFrame, QSplitter, QMessageBox, QMenu, QSystemTrayIcon, QButtonGroup
+    QGridLayout, QFrame, QSplitter, QMessageBox, QMenu, QSystemTrayIcon, QButtonGroup,
+    QDialog
 )
-from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize, QTimer, QEvent, QPoint
-from PyQt6.QtGui import QPixmap, QIcon, QAction, QPainter, QColor, QBrush, QPen, QPolygon
+from PyQt6.QtCore import Qt, pyqtSignal, QThread, QSize, QTimer, QEvent, QPoint, QUrl
+from PyQt6.QtGui import QPixmap, QIcon, QAction, QPainter, QColor, QBrush, QPen, QPolygon, QDesktopServices
 from limo_project.engine.database import DatabaseManager
 from limo_project.engine.vision_core import (
     scan_directory_generator,
@@ -427,6 +428,95 @@ class LoadingOverlay(QWidget):
         super().showEvent(event)
 
 
+class AboutDialog(QDialog):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("About LIMO")
+        self.setFixedSize(420, 340)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowCloseButtonHint)
+        
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #121216;
+                color: #e0e0e6;
+            }
+            QLabel {
+                color: #e0e0e6;
+            }
+            QPushButton {
+                background-color: #6c5ce7;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5b4cc4;
+            }
+        """)
+        
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(30, 30, 30, 25)
+        layout.setSpacing(15)
+        
+        # Logo widget
+        self.logo_label = QLabel(self)
+        self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        pixmap = QPixmap(64, 64)
+        pixmap.fill(Qt.GlobalColor.transparent)
+        painter = QPainter(pixmap)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setBrush(QColor("#6c5ce7"))
+        painter.setPen(Qt.PenStyle.NoPen)
+        painter.drawEllipse(2, 2, 60, 60)
+        painter.setBrush(QColor("#121216"))
+        painter.drawEllipse(18, 18, 28, 28)
+        painter.end()
+        self.logo_label.setPixmap(pixmap)
+        layout.addWidget(self.logo_label)
+        
+        # Title
+        self.title_label = QLabel("Local Intelligent Media Organizer", self)
+        self.title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: #ffffff;")
+        self.title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.title_label)
+        
+        # Version
+        self.version_label = QLabel("v1.0.0 (Offline & Local Edition)", self)
+        self.version_label.setStyleSheet("color: #7f8c8d; font-size: 11px;")
+        self.version_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(self.version_label)
+        
+        # Description
+        self.desc_label = QLabel(
+            "LIMO is a premium local photo organization utility. It features "
+            "completely offline face recognition, dynamic categorization indexing, "
+            "and on-the-fly reinforcement model refinement via feedback loops.",
+            self
+        )
+        self.desc_label.setWordWrap(True)
+        self.desc_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.desc_label.setStyleSheet("color: #b2bec3; font-size: 12px; line-height: 16px;")
+        layout.addWidget(self.desc_label)
+        
+        # Creator Link
+        self.creator_label = QLabel(self)
+        self.creator_label.setTextFormat(Qt.TextFormat.RichText)
+        self.creator_label.setText("Created by <a href='https://avijitroy.com' style='color: #6c5ce7; text-decoration: none;'>Avijit Roy</a>")
+        self.creator_label.setOpenExternalLinks(True)
+        self.creator_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.creator_label.setStyleSheet("font-size: 13px; font-weight: bold;")
+        layout.addWidget(self.creator_label)
+        
+        layout.addStretch()
+        
+        # Button
+        self.btn_close = QPushButton("Close", self)
+        self.btn_close.clicked.connect(self.accept)
+        layout.addWidget(self.btn_close, alignment=Qt.AlignmentFlag.AlignCenter)
+
+
 class ImageTile(QWidget):
     doubleClicked = pyqtSignal(str)
     feedbackClicked = pyqtSignal(str, int, int) # file_path, embedding_id, is_match
@@ -716,6 +806,12 @@ class MainWindow(QMainWindow):
         exit_action = QAction("Exit", self)
         exit_action.triggered.connect(self.close)
         setup_menu.addAction(exit_action)
+
+        # About Menu
+        help_menu = menubar.addMenu("Help")
+        about_action = QAction("About LIMO...", self)
+        about_action.triggered.connect(self.show_about_dialog)
+        help_menu.addAction(about_action)
 
     def init_ui(self):
         central_widget = QWidget(self)
@@ -1050,6 +1146,10 @@ class MainWindow(QMainWindow):
         self.btn_cancel_sync.setEnabled(False)
         self.index_thread.stop()
         self.status_label.setText("Sync cancelled. Cleaning up thread...")
+
+    def show_about_dialog(self):
+        dialog = AboutDialog(self)
+        dialog.exec()
 
     def on_index_step(self, step, filepath):
         if not self.is_background_sync:
