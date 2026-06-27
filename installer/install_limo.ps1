@@ -4,8 +4,11 @@
 $AppName = "LIMO"
 $AppDir = "$env:LOCALAPPDATA\LIMO"
 $ExeName = "LIMO.exe"
+$IconName = "logo.ico"
 $SrcExe = Join-Path $PSScriptRoot $ExeName
+$SrcIcon = Join-Path $PSScriptRoot $IconName
 $DestExe = Join-Path $AppDir $ExeName
+$DestIcon = Join-Path $AppDir $IconName
 
 # Make sure console output is visible and clean
 Clear-Host
@@ -29,6 +32,10 @@ if (-not (Test-Path $SrcExe)) {
 
 Write-Host "Copying application files..." -ForegroundColor Gray
 Copy-Item -Path $SrcExe -Destination $DestExe -Force
+if (Test-Path $SrcIcon) {
+    Copy-Item -Path $SrcIcon -Destination $DestIcon -Force
+}
+$ShortcutIcon = if (Test-Path $DestIcon) { $DestIcon } else { $DestExe }
 
 # 3. Create Uninstaller Script inside the AppDir
 Write-Host "Setting up uninstaller registry hooks..." -ForegroundColor Gray
@@ -87,6 +94,7 @@ $StartMenuLnk = Join-Path $StartMenuDir "LIMO.lnk"
 $Shortcut = $WshShell.CreateShortcut($StartMenuLnk)
 $Shortcut.TargetPath = $DestExe
 $Shortcut.WorkingDirectory = $AppDir
+$Shortcut.IconLocation = $ShortcutIcon
 $Shortcut.Description = "Local Intelligent Media Organizer"
 $Shortcut.Save()
 
@@ -96,6 +104,7 @@ $DesktopLnk = Join-Path $DesktopDir "LIMO.lnk"
 $ShortcutDesktop = $WshShell.CreateShortcut($DesktopLnk)
 $ShortcutDesktop.TargetPath = $DestExe
 $ShortcutDesktop.WorkingDirectory = $AppDir
+$ShortcutDesktop.IconLocation = $ShortcutIcon
 $ShortcutDesktop.Description = "Local Intelligent Media Organizer"
 $ShortcutDesktop.Save()
 
@@ -107,7 +116,7 @@ if (-not (Test-Path $RegPath)) {
 
 Set-ItemProperty -Path $RegPath -Name "DisplayName" -Value "Local Intelligent Media Organizer (LIMO)" -Force
 Set-ItemProperty -Path $RegPath -Name "UninstallString" -Value "powershell.exe -ExecutionPolicy Bypass -File `"$UninstallScriptPath`"" -Force
-Set-ItemProperty -Path $RegPath -Name "DisplayIcon" -Value $DestExe -Force
+Set-ItemProperty -Path $RegPath -Name "DisplayIcon" -Value $ShortcutIcon -Force
 Set-ItemProperty -Path $RegPath -Name "Publisher" -Value "Avijit Roy" -Force
 Set-ItemProperty -Path $RegPath -Name "DisplayVersion" -Value "1.0.0" -Force
 Set-ItemProperty -Path $RegPath -Name "HelpLink" -Value "https://limo.avijitroy.com" -Force

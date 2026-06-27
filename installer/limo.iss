@@ -21,7 +21,7 @@ DisableWelcomePage=no
 SetupIconFile=logo.ico
 WizardImageFile=wizard.bmp
 WizardSmallImageFile=wizard_small.bmp
-UninstallDisplayIcon={app}\LIMO.exe
+UninstallDisplayIcon={app}\logo.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -31,10 +31,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 
 [Files]
 Source: "LIMO.exe"; DestDir: "{app}"; Flags: ignoreversion
+Source: "logo.ico"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\LIMO"; Filename: "{app}\LIMO.exe"; WorkingDir: "{app}"
-Name: "{autodesktop}\LIMO"; Filename: "{app}\LIMO.exe"; WorkingDir: "{app}"; Tasks: desktopicon
+Name: "{group}\LIMO"; Filename: "{app}\LIMO.exe"; WorkingDir: "{app}"; IconFilename: "{app}\logo.ico"; AppUserModelID: "com.avijitroy.limo"
+Name: "{autodesktop}\LIMO"; Filename: "{app}\LIMO.exe"; WorkingDir: "{app}"; IconFilename: "{app}\logo.ico"; AppUserModelID: "com.avijitroy.limo"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\LIMO.exe"; Description: "{cm:LaunchProgram,LIMO}"; Flags: nowait postinstall skipifsilent

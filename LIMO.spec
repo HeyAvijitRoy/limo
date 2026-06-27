@@ -4,7 +4,10 @@ from PyInstaller.utils.hooks import collect_data_files
 datas = []
 datas += collect_data_files('face_recognition_models')
 datas += collect_data_files('face_recognition')
-datas += [('installer\\logo.png', 'installer')]
+datas += [
+    ('installer\\logo.png', 'installer'),
+    ('installer\\logo.ico', 'installer'),
+]
 
 
 a = Analysis(
