@@ -20,7 +20,7 @@ A common real-world use case: photo studios use LIMO's face search to locate a c
 
 ## Links
 
-- [Homepage](https://limo.avijitroy.com/)
+- [Homepage](https://avijitroy.com/limo/)
 - [Source code](https://github.com/HeyAvijitRoy/limo)
 - [Download / Releases](https://github.com/HeyAvijitRoy/limo/releases/tag/v1.0.0)
 - [License (MIT)](https://github.com/HeyAvijitRoy/limo/blob/main/LICENSE)
