@@ -1,0 +1,26 @@
+# LIMO
+
+> LIMO (Local Intelligent Media Organizer) is a free, open-source, offline-first photo organizer for Windows that automatically categorizes photos and finds people by face search, entirely on-device, with no cloud upload or account required.
+
+## About
+
+LIMO is inspired by Google Picasa, the free desktop photo manager Google discontinued in 2016. It revives that simplicity with local computer vision: face recognition, automatic categorization (portraits, couples, groups, landscapes, documents), and a feedback loop (thumbs up/down) that improves face-search accuracy over time.
+
+A common real-world use case: photo studios use LIMO's face search to locate a customer's past photo orders from a new snapshot or a scanned print, even when the customer has lost their order token or receipt number. The studio simply searches by face instead of by file name or order number.
+
+## Key facts
+
+- Free and open source, MIT License
+- Windows desktop application, built with Python and PyQt6
+- 100% offline: no cloud processing, no account, no telemetry
+- Local face search comparing face embeddings entirely on-device
+- Automatic photo categorization: portraits, couples, groups, landscapes, documents
+- Peak memory usage kept under 500MB even on large photo libraries
+- Current version: v1.0.0
+
+## Links
+
+- [Homepage](https://limo.avijitroy.com/)
+- [Source code](https://github.com/HeyAvijitRoy/limo)
+- [Download / Releases](https://github.com/HeyAvijitRoy/limo/releases/tag/v1.0.0)
+- [License (MIT)](https://github.com/HeyAvijitRoy/limo/blob/main/LICENSE)

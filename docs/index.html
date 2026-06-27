@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LIMO: Free, Open-Source Photo Organizer with Face Search for Windows</title>
+  <meta name="description" content="LIMO is a free, open-source photo organizer for Windows. It sorts your photos automatically and finds anyone by their face. 100% offline, no account, no cloud. Inspired by the Picasa you miss.">
+  <meta name="keywords" content="photo organizer, face search software, offline photo organizer, Picasa alternative, open source photo manager, Windows photo software, photo studio face search">
+  <meta name="robots" content="index, follow">
+  <meta name="author" content="Avijit Roy">
+  <meta name="theme-color" content="#060913">
+  <link rel="canonical" href="https://limo.avijitroy.com/">
+
+  <meta property="og:title" content="LIMO: Free, Open-Source Photo Organizer with Face Search">
+  <meta property="og:description" content="Sort your photos automatically and find anyone by their face, 100% offline. Free and open source, inspired by the Picasa you miss.">
+  <meta property="og:image" content="https://limo.avijitroy.com/assets/limo-logo.png">
+  <meta property="og:image:width" content="1044">
+  <meta property="og:image:height" content="1044">
+  <meta property="og:url" content="https://limo.avijitroy.com/">
+  <meta property="og:site_name" content="LIMO">
+  <meta property="og:locale" content="en_US">
+  <meta property="og:type" content="website">
+
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="LIMO: Free, Open-Source Photo Organizer with Face Search">
+  <meta name="twitter:description" content="Sort your photos automatically and find anyone by their face, 100% offline. Free and open source, inspired by the Picasa you miss.">
+  <meta name="twitter:image" content="https://limo.avijitroy.com/assets/limo-logo.png">
+
+  <link rel="icon" href="assets/favicon.ico">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "LIMO",
+    "alternateName": "Local Intelligent Media Organizer",
+    "description": "LIMO is a free, open-source, offline-first photo organizer for Windows. It automatically categorizes photos and finds people by face search, entirely on-device, with no cloud upload or account required.",
+    "applicationCategory": "MultimediaApplication",
+    "operatingSystem": "Windows",
+    "softwareVersion": "1.0.0",
+    "url": "https://limo.avijitroy.com/",
+    "image": "https://limo.avijitroy.com/assets/limo-logo.png",
+    "downloadUrl": "https://github.com/HeyAvijitRoy/limo/releases/download/v1.0.0/LIMO_Setup.exe",
+    "license": "https://opensource.org/licenses/MIT",
+    "isAccessibleForFree": true,
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "author": {
+      "@type": "Person",
+      "name": "Avijit Roy",
+      "url": "https://avijitroy.com"
+    }
+  }
+  </script>
+
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "Is LIMO free to use?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. LIMO is completely free and open source under the MIT license, with no subscriptions, ads, or paid tiers."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does LIMO work without an internet connection?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. LIMO runs 100% offline. Photo indexing, categorization, and face search all happen locally on your Windows PC, and nothing is ever uploaded to the cloud."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can LIMO find photos of a specific person by their face?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Drop in any reference photo of a person and LIMO searches your library locally to find every photo that contains a matching face."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is LIMO a replacement for Google Picasa?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "LIMO is inspired by Picasa's simplicity and built as a free, open-source alternative for people who miss it, with modern local face search added on top."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can a photo studio use LIMO to find a customer's past photos?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Studios use LIMO's face search to locate a customer's past photo orders from a brand-new snapshot or a scanned print, even if the customer has lost their order receipt or token number."
+        }
+      }
+    ]
+  }
+  </script>
+</head>
+<body>
+  <header class="site-header" data-header>
+    <a class="brand" href="#top" aria-label="LIMO home">
+      <img src="assets/limo-logo.png" alt="" class="brand-mark">
+      <span>LIMO</span>
+    </a>
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav" data-nav-toggle>
+      <span></span>
+      <span></span>
+      <span></span>
+      <span class="sr-only">Menu</span>
+    </button>
+    <nav class="site-nav" id="site-nav" data-nav>
+      <a href="#story">Story</a>
+      <a href="#features">Features</a>
+      <a href="#privacy">Privacy</a>
+      <a href="#faq">FAQ</a>
+      <a class="nav-download" href="https://github.com/HeyAvijitRoy/limo/releases/download/v1.0.0/LIMO_Setup.exe" target="_blank" rel="noopener noreferrer">Download</a>
+    </nav>
+  </header>
+
+  <main id="top">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-content">
+        <p class="eyebrow">Free &amp; open source · Windows app</p>
+        <h1 id="hero-title">LIMO</h1>
+        <p class="hero-subtitle">The free photo organizer that finds anyone by their face. No uploads, no accounts, no cloud: just your photos, sorted and searchable.</p>
+        <div class="hero-actions" aria-label="Primary actions">
+          <a class="button button-primary" href="https://github.com/HeyAvijitRoy/limo/releases/download/v1.0.0/LIMO_Setup.exe" target="_blank" rel="noopener noreferrer">Download free for Windows</a>
+          <a class="button button-secondary" href="https://github.com/HeyAvijitRoy/limo" target="_blank" rel="noopener noreferrer">View source on GitHub</a>
+        </div>
+        <dl class="hero-stats" aria-label="LIMO highlights">
+          <div>
+            <dt>100%</dt>
+            <dd>offline &amp; private</dd>
+          </div>
+          <div>
+            <dt>Free</dt>
+            <dd>open source</dd>
+          </div>
+          <div>
+            <dt>v1.0.0</dt>
+            <dd>for Windows</dd>
+          </div>
+        </dl>
+      </div>
+    </section>
+
+    <section class="intro-band" aria-label="Product summary">
+      <div class="container intro-grid">
+        <p>LIMO keeps every photo on your machine; nothing is ever uploaded. It sorts your library automatically into portraits, couples, groups, and more, and can find anyone in seconds just by showing it their face.</p>
+        <a href="https://avijitroy.com" target="_blank" rel="noopener noreferrer">Built by Avijit Roy</a>
+      </div>
+    </section>
+
+    <section class="section story-section" id="story" aria-labelledby="story-title">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Why LIMO exists</p>
+          <h2 id="story-title">Picasa is gone. The problem it solved isn't.</h2>
+        </div>
+        <div class="story-grid">
+          <article class="story-card" data-reveal>
+            <span class="story-tag">The nostalgia</span>
+            <h3>We miss Picasa.</h3>
+            <p>For a decade, Google Picasa made messy photo folders feel organized: fast, free, and running quietly on your own PC. Google shut it down in 2016, and nothing free ever fully replaced it. LIMO is a love letter to that era, the same "it just works" feeling, rebuilt with modern local AI and zero cloud strings attached.</p>
+          </article>
+          <article class="story-card story-card-accent" data-reveal>
+            <span class="story-tag">A real-world problem</span>
+            <h3>"I lost my photo token."</h3>
+            <p>Photo studios hear it every week: a customer comes back years later wanting reprints, but their receipt or order token is long gone. Instead of digging through filing cabinets, the studio snaps one new photo of the customer (or scans an old print), and LIMO's face search finds every past shoot that face appears in.</p>
+            <p class="story-highlight">Search by face, not by file name.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="features">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">What it does</p>
+          <h2>Find any photo by a face. Let the rest sort itself.</h2>
+        </div>
+        <div class="feature-grid">
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">01</span>
+            <h3>Search by face</h3>
+            <p>Drop in any photo of someone and LIMO finds every picture of them in your library, even in old, unsorted folders.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">02</span>
+            <h3>Sorts itself</h3>
+            <p>Portraits, couples, groups, landscapes, and documents get sorted automatically as your photos are scanned in.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">03</span>
+            <h3>Gets smarter with you</h3>
+            <p>Thumbs up a good match or thumbs down a bad one, and LIMO remembers: face search keeps improving the more you use it.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">04</span>
+            <h3>Fix many at once</h3>
+            <p>Select a batch of photos like you would in Windows Explorer, then re-sort them all into the right category in one go.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">05</span>
+            <h3>Browse your way</h3>
+            <p>Switch between one big library view or familiar folder-by-folder browsing, whichever feels more natural to you.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">06</span>
+            <h3>Never wait on a loading screen</h3>
+            <p>Photos appear as they're found, so even libraries with thousands of files feel instant to browse.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">07</span>
+            <h3>Light on your PC</h3>
+            <p>Smart thumbnailing keeps memory use low, so LIMO stays fast even on massive personal photo archives.</p>
+          </article>
+          <article class="feature-card" data-reveal>
+            <span class="feature-icon">08</span>
+            <h3>Stays out of your way</h3>
+            <p>Minimize LIMO to the system tray and let it index quietly in the background while you do other things.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section privacy-section" id="privacy">
+      <div class="container privacy-layout">
+        <div>
+          <p class="eyebrow">Privacy model</p>
+          <h2>Your photos stay local.</h2>
+          <p class="section-copy">LIMO is built for personal archives, family albums, and private photo folders. Every scan, face match, and category runs on your desktop, and the index stays on your hard drive, never on someone else's server.</p>
+        </div>
+        <div class="privacy-list" aria-label="Privacy commitments">
+          <div data-reveal>
+            <strong>No cloud upload</strong>
+            <span>Computer vision runs locally on your Windows machine.</span>
+          </div>
+          <div data-reveal>
+            <strong>No account required</strong>
+            <span>Install, choose a folder, and start organizing.</span>
+          </div>
+          <div data-reveal>
+            <strong>Local database</strong>
+            <span>Generated thumbnails, categories, and face data stay in the app index.</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section release-section">
+      <div class="container release-panel">
+        <div>
+          <p class="eyebrow">Latest release</p>
+          <h2>Install LIMO v1.0.0 for Windows.</h2>
+          <p class="section-copy">Download the installer from GitHub Releases and run <code>LIMO_Setup.exe</code> to install the desktop app.</p>
+        </div>
+        <div class="release-actions">
+          <a class="button button-primary" href="https://github.com/HeyAvijitRoy/limo/releases/download/v1.0.0/LIMO_Setup.exe" target="_blank" rel="noopener noreferrer">Download Installer</a>
+          <a class="button button-secondary light" href="https://github.com/HeyAvijitRoy/limo" target="_blank" rel="noopener noreferrer">Repository</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="section build-section" id="build">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">For developers</p>
+          <h2>Prefer to build it yourself? Compile from source.</h2>
+          <p class="section-copy">Most people should just grab the installer above; this path is for developers who want to audit or modify the open-source code first.</p>
+        </div>
+        <div class="steps">
+          <article data-reveal>
+            <span>1</span>
+            <h3>Install dependencies</h3>
+            <p>Create a Python virtual environment and install the project requirements.</p>
+          </article>
+          <article data-reveal>
+            <span>2</span>
+            <h3>Build the app</h3>
+            <p>Run PyInstaller with <code>LIMO.spec</code> and copy the generated EXE into <code>installer/</code>.</p>
+          </article>
+          <article data-reveal>
+            <span>3</span>
+            <h3>Compile setup</h3>
+            <p>Use Inno Setup 6 and <code>installer/limo.iss</code> to create <code>LIMO_Setup.exe</code>.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section faq-section" id="faq" aria-labelledby="faq-title">
+      <div class="container">
+        <div class="section-heading">
+          <p class="eyebrow">Common questions</p>
+          <h2 id="faq-title">Frequently asked questions.</h2>
+        </div>
+        <div class="faq-list">
+          <article data-reveal>
+            <h3>Is LIMO free to use?</h3>
+            <p>Yes. LIMO is completely free and open source under the MIT license, with no subscriptions, ads, or paid tiers.</p>
+          </article>
+          <article data-reveal>
+            <h3>Does LIMO work without an internet connection?</h3>
+            <p>Yes. LIMO runs 100% offline. Photo indexing, categorization, and face search all happen locally on your Windows PC, and nothing is ever uploaded to the cloud.</p>
+          </article>
+          <article data-reveal>
+            <h3>Can LIMO find photos of a specific person by their face?</h3>
+            <p>Yes. Drop in any reference photo of a person and LIMO searches your library locally to find every photo that contains a matching face.</p>
+          </article>
+          <article data-reveal>
+            <h3>Is LIMO a replacement for Google Picasa?</h3>
+            <p>LIMO is inspired by Picasa's simplicity and built as a free, open-source alternative for people who miss it, with modern local face search added on top.</p>
+          </article>
+          <article data-reveal>
+            <h3>Can a photo studio use LIMO to find a customer's past photos?</h3>
+            <p>Yes. Studios use LIMO's face search to locate a customer's past photo orders from a brand-new snapshot or a scanned print, even if the customer has lost their order receipt or token number.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-layout">
+      <p>Built by <a href="https://avijitroy.com" target="_blank" rel="noopener noreferrer">Avijit Roy</a>. Free and <a href="https://github.com/HeyAvijitRoy/limo" target="_blank" rel="noopener noreferrer">open source on GitHub</a>.</p>
+      <p>&copy; <span data-year></span> LIMO. MIT licensed.</p>
+    </div>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
