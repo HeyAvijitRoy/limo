@@ -26,8 +26,19 @@ from limo_project.engine.vision_core import (
 
 
 def get_logo_path():
+    return get_resource_path("installer", "logo.png")
+
+
+def get_icon_path():
+    icon_path = get_resource_path("installer", "logo.ico")
+    if os.path.exists(icon_path):
+        return icon_path
+    return get_logo_path()
+
+
+def get_resource_path(*parts):
     base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-    return os.path.join(base_dir, "installer", "logo.png")
+    return os.path.join(base_dir, *parts)
 
 
 class IndexThread(QThread):
@@ -779,7 +790,7 @@ class MainWindow(QMainWindow):
         self.live_refresh_timer.timeout.connect(self.trigger_search)
 
         self.setWindowTitle("Local Intelligent Media Organizer (LIMO)")
-        self.setWindowIcon(QIcon(get_logo_path()))
+        self.setWindowIcon(QIcon(get_icon_path()))
         self.resize(1100, 750)
         
         self.setup_styles()
@@ -1154,7 +1165,7 @@ class MainWindow(QMainWindow):
 
     def init_system_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
-        self.tray_icon.setIcon(QIcon(get_logo_path()))
+        self.tray_icon.setIcon(QIcon(get_icon_path()))
         self.tray_icon.setToolTip("Local Intelligent Media Organizer (LIMO)")
 
         tray_menu = QMenu()
