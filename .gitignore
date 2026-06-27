@@ -41,3 +41,8 @@ dist/
 
 # Compiled executables and installers
 *.exe
+
+# Generated installer assets (regenerated from installer/logo.png via scratch/create_icons.py)
+installer/logo.ico
+installer/wizard.bmp
+installer/wizard_small.bmp
