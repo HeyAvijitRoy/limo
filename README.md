@@ -5,6 +5,7 @@
 [![PyQt6](https://img.shields.io/badge/GUI-PyQt6-darkgreen?style=for-the-badge&logo=qt)](https://www.riverbankcomputing.com/software/pyqt/)
 [![License - MIT](https://img.shields.io/badge/License-MIT-yellow?style=for-the-badge)](https://opensource.org/licenses/MIT)
 [![Offline](https://img.shields.io/badge/Privacy-100%25%20Offline-brightgreen?style=for-the-badge)](https://github.com)
+[![Download LIMO](https://img.shields.io/badge/Download-LIMO%20v1.0.0-brightgreen?style=for-the-badge&logo=github)](https://github.com/HeyAvijitRoy/limo/releases/tag/v1.0.0)
 
 A premium, privacy-focused desktop utility designed to index, organize, filter, and search your personal photo library entirely offline. LIMO leverages local computer vision models, heuristics, and reinforcement learning loops to cluster faces and auto-categorize media without ever connecting to the internet.
 
