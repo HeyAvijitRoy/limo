@@ -9,14 +9,14 @@
   <meta name="robots" content="index, follow">
   <meta name="author" content="Avijit Roy">
   <meta name="theme-color" content="#060913">
-  <link rel="canonical" href="https://limo.avijitroy.com/">
+  <link rel="canonical" href="https://avijitroy.com/limo/">
 
   <meta property="og:title" content="LIMO: Free, Open-Source Photo Organizer with Face Search">
   <meta property="og:description" content="Sort your photos automatically and find anyone by their face, 100% offline. Free and open source, inspired by the Picasa you miss.">
-  <meta property="og:image" content="https://limo.avijitroy.com/assets/limo-logo.png">
+  <meta property="og:image" content="https://avijitroy.com/limo/assets/limo-logo.png">
   <meta property="og:image:width" content="1044">
   <meta property="og:image:height" content="1044">
-  <meta property="og:url" content="https://limo.avijitroy.com/">
+  <meta property="og:url" content="https://avijitroy.com/limo/">
   <meta property="og:site_name" content="LIMO">
   <meta property="og:locale" content="en_US">
   <meta property="og:type" content="website">
@@ -24,7 +24,7 @@
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content="LIMO: Free, Open-Source Photo Organizer with Face Search">
   <meta name="twitter:description" content="Sort your photos automatically and find anyone by their face, 100% offline. Free and open source, inspired by the Picasa you miss.">
-  <meta name="twitter:image" content="https://limo.avijitroy.com/assets/limo-logo.png">
+  <meta name="twitter:image" content="https://avijitroy.com/limo/assets/limo-logo.png">
 
   <link rel="icon" href="assets/favicon.ico">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -32,31 +32,69 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="styles.css">
 
+  <!-- Google tag (gtag.js) -->
+  <script async src="https://www.googletagmanager.com/gtag/js?id=G-Y4VM6347X4"></script>
+  <script>
+    window.dataLayer = window.dataLayer || [];
+    function gtag(){dataLayer.push(arguments);}
+    gtag('js', new Date());
+    gtag('config', 'G-Y4VM6347X4');
+  </script>
+
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
-    "@type": "SoftwareApplication",
-    "name": "LIMO",
-    "alternateName": "Local Intelligent Media Organizer",
-    "description": "LIMO is a free, open-source, offline-first photo organizer for Windows. It automatically categorizes photos and finds people by face search, entirely on-device, with no cloud upload or account required.",
-    "applicationCategory": "MultimediaApplication",
-    "operatingSystem": "Windows",
-    "softwareVersion": "1.0.0",
-    "url": "https://limo.avijitroy.com/",
-    "image": "https://limo.avijitroy.com/assets/limo-logo.png",
-    "downloadUrl": "https://github.com/HeyAvijitRoy/limo/releases/download/v1.0.0/LIMO_Setup.exe",
-    "license": "https://opensource.org/licenses/MIT",
-    "isAccessibleForFree": true,
-    "offers": {
-      "@type": "Offer",
-      "price": "0",
-      "priceCurrency": "USD"
-    },
-    "author": {
-      "@type": "Person",
-      "name": "Avijit Roy",
-      "url": "https://avijitroy.com"
-    }
+    "@graph": [
+      {
+        "@type": "SoftwareApplication",
+        "name": "LIMO",
+        "alternateName": "Local Intelligent Media Organizer",
+        "description": "LIMO is a free, open-source, offline-first photo organizer for Windows. It automatically categorizes photos and finds people by face search, entirely on-device, with no cloud upload or account required.",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Windows",
+        "softwareVersion": "1.0.0",
+        "url": "https://avijitroy.com/limo/",
+        "image": "https://avijitroy.com/limo/assets/limo-logo.png",
+        "downloadUrl": "https://github.com/HeyAvijitRoy/limo/releases/download/v1.0.0/LIMO_Setup.exe",
+        "license": "https://opensource.org/licenses/MIT",
+        "isAccessibleForFree": true,
+        "offers": {
+          "@type": "Offer",
+          "price": "0",
+          "priceCurrency": "USD"
+        },
+        "author": {
+          "@id": "https://avijitroy.com/#person"
+        }
+      },
+      {
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+          { "@type": "ListItem", "position": 1, "name": "Home", "item": "https://avijitroy.com/" },
+          { "@type": "ListItem", "position": 2, "name": "Projects", "item": "https://avijitroy.com/projects/" },
+          { "@type": "ListItem", "position": 3, "name": "LIMO", "item": "https://avijitroy.com/limo/" }
+        ]
+      },
+      {
+        "@type": "Person",
+        "@id": "https://avijitroy.com/#person",
+        "name": "Avijit Roy",
+        "url": "https://avijitroy.com/",
+        "sameAs": [
+          "https://www.linkedin.com/in/HeyAvijitRoy/",
+          "https://github.com/HeyAvijitRoy",
+          "https://orcid.org/0009-0007-8036-0952",
+          "https://heyavijitroy.medium.com/",
+          "https://www.instagram.com/pirsquarek/",
+          "https://www.flickr.com/photos/kabyo/",
+          "https://www.researchgate.net/profile/Avijit-Roy-12",
+          "https://scholar.google.com/citations?user=mCpLl1EAAAAJ",
+          "https://www.scopus.com/authid/detail.uri?authorId=60652887600",
+          "https://www.webofscience.com/wos/author/record/PYV-9049-2026",
+          "https://papers.ssrn.com/sol3/cf_dev/AbsByAuth.cfm?per_id=10952068"
+        ]
+      }
+    ]
   }
   </script>
 
@@ -109,6 +147,7 @@
   }
   </script>
 </head>
+
 <body>
   <header class="site-header" data-header>
     <a class="brand" href="#top" aria-label="LIMO home">
