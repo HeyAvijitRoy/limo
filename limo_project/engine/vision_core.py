@@ -4,6 +4,8 @@ import numpy as np
 from PIL import Image
 import io
 import face_recognition
+import json
+from sklearn.neighbors import KNeighborsClassifier
 
 def scan_directory_generator(directory):
     """
@@ -52,36 +54,258 @@ def load_and_downscale_image(file_path, max_edge=1024):
     except Exception:
         return None, 0, 0
 
-def classify_image(img_bgr, face_count):
+def extract_classification_features(img_bgr, face_count):
     """
-    Classifies image based on local heuristics:
-    - Portraits: face_count > 0
-    - Screenshots/Documents: High edge density and face_count == 0
-    - Landscapes: horizontal aspect ratio (w/h >= 1.2) and face_count == 0
-    - Uncategorized: everything else
+    Extracts a 9-dimensional feature vector from the image for machine learning:
+    1. face_count: raw face count
+    2. skin_percent: percentage of skin tone pixels
+    3. center_skin_percent: percentage of skin tone concentrated in the center
+    4. edge_density: Canny edge density after Gaussian blur
+    5. num_colors: quantized colors count (simplification)
+    6. line_count: straight line count (Hough lines)
+    7. text_lines_count: horizontal morphological text blocks
+    8. sky_columns: number of smooth sky columns in top 30% (0 to 3)
+    9. nature_percent: percentage of nature colors in bottom 70%
     """
-    if face_count > 0:
-        return "Portraits"
-    
     try:
-        gray = cv2.cvtColor(img_bgr, cv2.COLOR_BGR2GRAY)
-        h, w = gray.shape
+        h, w = img_bgr.shape[:2]
         aspect_ratio = w / h
         
-        # Run Canny Edge Detection to calculate edge density
-        # Low and high thresholds: 50, 150
-        edges = cv2.Canny(gray, 50, 150)
-        edge_pixels = np.sum(edges > 0)
-        total_pixels = edges.size
-        edge_density = edge_pixels / total_pixels
+        scale = 256 / max(h, w)
+        small_w = int(w * scale)
+        small_h = int(h * scale)
+        img_small = cv2.resize(img_bgr, (small_w, small_h), interpolation=cv2.INTER_AREA)
         
-        # High edge density typically indicates text, graphics, screenshots or document scans
-        if edge_density > 0.07:
-            return "Screenshots/Documents"
+        gray = cv2.cvtColor(img_small, cv2.COLOR_BGR2GRAY)
+        hsv = cv2.cvtColor(img_small, cv2.COLOR_BGR2HSV)
         
-        if aspect_ratio >= 1.2:
-            return "Landscapes"
+        # Skin mask
+        lower_skin1 = np.array([0, 20, 60], dtype=np.uint8)
+        upper_skin1 = np.array([20, 150, 255], dtype=np.uint8)
+        mask1 = cv2.inRange(hsv, lower_skin1, upper_skin1)
+        lower_skin2 = np.array([170, 20, 60], dtype=np.uint8)
+        upper_skin2 = np.array([180, 150, 255], dtype=np.uint8)
+        mask2 = cv2.inRange(hsv, lower_skin2, upper_skin2)
+        skin_mask = cv2.bitwise_or(mask1, mask2)
+        skin_percent = np.sum(skin_mask > 0) / skin_mask.size
+        
+        # Center skin
+        ctr_left = int(small_w * 0.20)
+        ctr_right = int(small_w * 0.80)
+        ctr_top = int(small_h * 0.15)
+        ctr_bottom = int(small_h * 0.85)
+        center_skin_mask = skin_mask[ctr_top:ctr_bottom, ctr_left:ctr_right]
+        center_skin_percent = np.sum(center_skin_mask > 0) / center_skin_mask.size if center_skin_mask.size > 0 else 0
+        
+        # Blur & Canny
+        blurred = cv2.GaussianBlur(gray, (5, 5), 0)
+        edges = cv2.Canny(blurred, 30, 100)
+        edge_density = np.sum(edges > 0) / edges.size
+        
+        # Color count
+        quantized = (img_small // 64) * 64
+        unique_colors = np.unique(quantized.reshape(-1, 3), axis=0)
+        num_colors = len(unique_colors)
+        
+        # Straight lines
+        lines = cv2.HoughLinesP(edges, 1, np.pi/180, threshold=40, minLineLength=30, maxLineGap=10)
+        line_count = len(lines) if lines is not None else 0
+        
+        # Text lines
+        text_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (25, 3))
+        dilated = cv2.morphologyEx(edges, cv2.MORPH_CLOSE, text_kernel)
+        contours, _ = cv2.findContours(dilated, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        text_lines_count = 0
+        for cnt in contours:
+            x_b, y_b, w_b, h_b = cv2.boundingRect(cnt)
+            aspect = w_b / h_b
+            if aspect > 2.0 and 3 <= h_b <= 20 and w_b >= 30:
+                text_lines_count += 1
+                
+        # Sky columns
+        top_h = int(small_h * 0.3)
+        top_region = img_small[:top_h, :]
+        top_hsv = hsv[:top_h, :]
+        col_w = small_w // 3 if small_w >= 3 else 1
+        
+        sky_columns = 0
+        for i in range(3):
+            col_bgr = top_region[:, i*col_w : (i+1)*col_w]
+            col_hsv = top_hsv[:, i*col_w : (i+1)*col_w]
+            col_gray = gray[:top_h, i*col_w : (i+1)*col_w]
             
+            col_edges = cv2.Canny(col_gray, 30, 100)
+            col_edges_density = np.sum(col_edges > 0) / col_edges.size if col_edges.size > 0 else 0
+            
+            blue_mask = cv2.inRange(col_hsv, np.array([90, 30, 80]), np.array([130, 255, 255]))
+            bright_mask = cv2.inRange(col_hsv, np.array([0, 0, 180]), np.array([180, 45, 255]))
+            sky_p = np.sum(cv2.bitwise_or(blue_mask, bright_mask) > 0) / col_bgr.size if col_bgr.size > 0 else 0
+            
+            if col_edges_density < 0.05 and sky_p > 0.15:
+                sky_columns += 1
+                
+        # Nature percent
+        bottom_hsv = hsv[top_h:, :]
+        green_mask = cv2.inRange(bottom_hsv, np.array([30, 25, 40]), np.array([85, 255, 255]))
+        green_percent = np.sum(green_mask > 0) / bottom_hsv.size if bottom_hsv.size > 0 else 0
+        brown_mask = cv2.inRange(bottom_hsv, np.array([10, 40, 30]), np.array([25, 255, 180]))
+        brown_percent = np.sum(brown_mask > 0) / bottom_hsv.size if bottom_hsv.size > 0 else 0
+        nature_percent = green_percent + brown_percent
+        
+        return [
+            float(face_count),
+            float(skin_percent),
+            float(center_skin_percent),
+            float(edge_density),
+            float(num_colors),
+            float(line_count),
+            float(text_lines_count),
+            float(sky_columns),
+            float(nature_percent)
+        ]
+    except Exception:
+        return [float(face_count), 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+
+
+def normalize_features(features):
+    if features is None or len(features) < 9:
+        return features
+    norm = list(features)
+    norm[0] = min(1.0, features[0] / 5.0)   # face_count scaled to [0, 1]
+    # norm[1] is skin_percent
+    # norm[2] is center_skin_percent
+    # norm[3] is edge_density
+    norm[4] = min(1.0, features[4] / 256.0) # num_colors
+    norm[5] = min(1.0, features[5] / 100.0) # line_count
+    norm[6] = min(1.0, features[6] / 30.0)  # text_lines_count
+    norm[7] = features[7] / 3.0             # sky_columns
+    # norm[8] is nature_percent
+    return norm
+
+
+class CategoryClassifier:
+    _manual_overrides = []
+    
+    @classmethod
+    def train_model(cls, db_manager):
+        try:
+            cls._manual_overrides = db_manager.get_manual_overrides()
+        except Exception:
+            cls._manual_overrides = []
+
+    @classmethod
+    def predict(cls, feature_vector, default_heuristic_category):
+        if not cls._manual_overrides:
+            return None
+            
+        norm_q = normalize_features(feature_vector)
+        
+        best_dist = float('inf')
+        best_override = None
+        
+        for override in cls._manual_overrides:
+            norm_o = normalize_features(override["features"])
+            # Compute Euclidean distance (including face_count at index 0)
+            diff = np.array(norm_q) - np.array(norm_o)
+            dist = np.linalg.norm(diff)
+            if dist < best_dist:
+                best_dist = dist
+                best_override = override
+                
+        if best_override is not None:
+            # Check thresholds
+            # 1. Negative reinforcement: default heuristic matches the category user rejected/changed from
+            if best_dist <= 0.35:
+                if default_heuristic_category == best_override["original_category"]:
+                    return best_override["category_label"]
+            
+            # 2. Positive reinforcement: features are extremely close to the overridden image
+            if best_dist <= 0.25:
+                return best_override["category_label"]
+                
+        return None
+
+
+def classify_image(img_bgr, face_count, features_list=None):
+    """
+    Classifies image based on machine learning prediction or fallback heuristics:
+    - Portrait: Exactly 1 face.
+    - Couple: Exactly 2 faces.
+    - Group: 3 or more faces.
+    - Landscape: No human indicators (no faces, no skin tone) and sky/ground layers.
+    - Documents: horizontal morphological text blocks.
+    - Uncategorized: fallback.
+    """
+    features = features_list
+    if features is None:
+        features = extract_classification_features(img_bgr, face_count)
+        
+    # First determine candidate category based on strict rules/heuristics
+    if face_count == 1:
+        candidate = "Portrait"
+    elif face_count == 2:
+        candidate = "Couple"
+    elif face_count >= 3:
+        candidate = "Group"
+    else:
+        candidate = _classify_heuristics(img_bgr, features)
+        
+    # Check if ML model has manual overrides and can predict/correct this candidate
+    ml_pred = CategoryClassifier.predict(features, candidate)
+    if ml_pred is not None:
+        return ml_pred
+        
+    return candidate
+
+
+def _classify_heuristics(img_bgr, features):
+    try:
+        h, w = img_bgr.shape[:2]
+        aspect_ratio = w / h
+        
+        skin_percent = features[1]
+        center_skin_percent = features[2]
+        edge_density = features[3]
+        num_colors = features[4]
+        line_count = features[5]
+        text_lines_count = features[6]
+        sky_columns = features[7]
+        nature_percent = features[8]
+        
+        # 1. Document Check
+        if text_lines_count >= 5:
+            return "Documents"
+            
+        # 2. Landscape Check (Requires no humans: skin_percent <= 0.035)
+        if aspect_ratio >= 0.65 and skin_percent <= 0.035:
+            # Downscale and analyze colors in HSV
+            scale = 128 / max(h, w)
+            small_w = int(w * scale)
+            small_h = int(h * scale)
+            img_small = cv2.resize(img_bgr, (small_w, small_h), interpolation=cv2.INTER_AREA)
+            hsv = cv2.cvtColor(img_small, cv2.COLOR_BGR2HSV)
+            
+            # Define nature masks
+            green_mask = cv2.inRange(hsv, np.array([30, 20, 30]), np.array([90, 255, 255]))
+            blue_mask = cv2.inRange(hsv, np.array([90, 20, 30]), np.array([135, 255, 255]))
+            brown_yellow_mask = cv2.inRange(hsv, np.array([5, 20, 30]), np.array([30, 255, 255]))
+            white_mask = cv2.inRange(hsv, np.array([0, 0, 150]), np.array([180, 30, 255]))
+            
+            nature_mask = cv2.bitwise_or(green_mask, blue_mask)
+            nature_mask = cv2.bitwise_or(nature_mask, brown_yellow_mask)
+            nature_mask = cv2.bitwise_or(nature_mask, white_mask)
+            
+            nature_ratio = np.sum(nature_mask > 0) / nature_mask.size
+            
+            # Require at least 10% saturated nature color (green, blue, brown/yellow) to exclude plain white/grey screens
+            green_p = np.sum(green_mask > 0) / green_mask.size
+            blue_p = np.sum(blue_mask > 0) / blue_mask.size
+            brown_p = np.sum(brown_yellow_mask > 0) / brown_yellow_mask.size
+            has_color_nature = (green_p + blue_p + brown_p) >= 0.10
+            
+            if sky_columns >= 1 or (nature_ratio >= 0.30 and has_color_nature):
+                return "Landscape"
+                
     except Exception:
         pass
         

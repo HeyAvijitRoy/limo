@@ -6,6 +6,7 @@ class DatabaseManager:
     def __init__(self, db_path="face_index.db"):
         self.db_path = db_path
         self._init_db()
+        self._run_migrations()
 
     def _get_connection(self):
         conn = sqlite3.connect(self.db_path)
@@ -23,7 +24,10 @@ class DatabaseManager:
                 file_name TEXT NOT NULL,
                 date_modified REAL NOT NULL,
                 category_label TEXT DEFAULT 'Uncategorized',
-                thumbnail_blob BLOB
+                thumbnail_blob BLOB,
+                features TEXT,
+                is_manual_category INTEGER DEFAULT 0,
+                original_category TEXT
             );
             """)
             cursor.execute("""
@@ -47,23 +51,72 @@ class DatabaseManager:
             cursor.execute("CREATE INDEX IF NOT EXISTS idx_file_path ON media_files(absolute_path);")
             conn.commit()
 
-    def add_media_file(self, absolute_path, file_name, date_modified, category_label, thumbnail_blob):
+    def _run_migrations(self):
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(media_files);")
+            columns = [row["name"] for row in cursor.fetchall()]
+            
+            if "features" not in columns:
+                cursor.execute("ALTER TABLE media_files ADD COLUMN features TEXT;")
+            if "is_manual_category" not in columns:
+                cursor.execute("ALTER TABLE media_files ADD COLUMN is_manual_category INTEGER DEFAULT 0;")
+            if "original_category" not in columns:
+                cursor.execute("ALTER TABLE media_files ADD COLUMN original_category TEXT;")
+            
+            # Migrate old plural category labels to singular
+            cursor.execute("UPDATE media_files SET category_label = 'Portrait' WHERE category_label = 'Portraits';")
+            cursor.execute("UPDATE media_files SET category_label = 'Couple' WHERE category_label = 'Couples';")
+            cursor.execute("UPDATE media_files SET category_label = 'Group' WHERE category_label = 'Groups';")
+            cursor.execute("UPDATE media_files SET category_label = 'Landscape' WHERE category_label = 'Landscapes';")
+            
+            cursor.execute("UPDATE media_files SET original_category = 'Portrait' WHERE original_category = 'Portraits';")
+            cursor.execute("UPDATE media_files SET original_category = 'Couple' WHERE original_category = 'Couples';")
+            cursor.execute("UPDATE media_files SET original_category = 'Group' WHERE original_category = 'Groups';")
+            cursor.execute("UPDATE media_files SET original_category = 'Landscape' WHERE original_category = 'Landscapes';")
+            
+            conn.commit()
+
+    def add_media_file(self, absolute_path, file_name, date_modified, category_label, thumbnail_blob, features=None, is_manual_category=0):
         """
         Inserts or replaces a media file record.
         Returns the file_id.
         """
         with self._get_connection() as conn:
             cursor = conn.cursor()
-            cursor.execute("""
-            INSERT INTO media_files (absolute_path, file_name, date_modified, category_label, thumbnail_blob)
-            VALUES (?, ?, ?, ?, ?)
-            ON CONFLICT(absolute_path) DO UPDATE SET
-                file_name=excluded.file_name,
-                date_modified=excluded.date_modified,
-                category_label=excluded.category_label,
-                thumbnail_blob=excluded.thumbnail_blob;
-            """, (absolute_path, file_name, date_modified, category_label, thumbnail_blob))
+            cursor.execute("SELECT file_id, is_manual_category FROM media_files WHERE absolute_path = ?", (absolute_path,))
+            existing = cursor.fetchone()
             
+            if existing:
+                file_id = existing["file_id"]
+                if existing["is_manual_category"] == 1:
+                    # Keep existing user-overridden category, but update other fields
+                    cursor.execute("""
+                    UPDATE media_files SET
+                        file_name = ?,
+                        date_modified = ?,
+                        thumbnail_blob = ?,
+                        features = ?
+                    WHERE file_id = ?;
+                    """, (file_name, date_modified, thumbnail_blob, features, file_id))
+                else:
+                    # Update everything
+                    cursor.execute("""
+                    UPDATE media_files SET
+                        file_name = ?,
+                        date_modified = ?,
+                        category_label = ?,
+                        thumbnail_blob = ?,
+                        features = ?,
+                        is_manual_category = ?
+                    WHERE file_id = ?;
+                    """, (file_name, date_modified, category_label, thumbnail_blob, features, is_manual_category, file_id))
+            else:
+                cursor.execute("""
+                INSERT INTO media_files (absolute_path, file_name, date_modified, category_label, thumbnail_blob, features, is_manual_category)
+                VALUES (?, ?, ?, ?, ?, ?, ?);
+                """, (absolute_path, file_name, date_modified, category_label, thumbnail_blob, features, is_manual_category))
+                
             cursor.execute("SELECT file_id FROM media_files WHERE absolute_path = ?", (absolute_path,))
             row = cursor.fetchone()
             return row["file_id"]
@@ -100,13 +153,13 @@ class DatabaseManager:
             cursor = conn.cursor()
             if category and category.lower() != 'all':
                 cursor.execute("""
-                SELECT file_id, absolute_path, file_name, date_modified, category_label, thumbnail_blob
+                SELECT file_id, absolute_path, file_name, date_modified, category_label, thumbnail_blob, features, is_manual_category, original_category
                 FROM media_files
                 WHERE category_label = ?;
                 """, (category,))
             else:
                 cursor.execute("""
-                SELECT file_id, absolute_path, file_name, date_modified, category_label, thumbnail_blob
+                SELECT file_id, absolute_path, file_name, date_modified, category_label, thumbnail_blob, features, is_manual_category, original_category
                 FROM media_files;
                 """)
             return [dict(row) for row in cursor.fetchall()]
@@ -172,12 +225,94 @@ class DatabaseManager:
         with self._get_connection() as conn:
             cursor = conn.cursor()
             cursor.execute("""
-            SELECT file_id, absolute_path, file_name, date_modified, category_label
+            SELECT file_id, absolute_path, file_name, date_modified, category_label, features, is_manual_category, original_category
             FROM media_files
             WHERE absolute_path = ?;
             """, (absolute_path,))
             row = cursor.fetchone()
             return dict(row) if row else None
+
+    def update_media_category(self, absolute_path, category_label):
+        import json
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT category_label, is_manual_category, original_category FROM media_files WHERE absolute_path = ?;", (absolute_path,))
+            row = cursor.fetchone()
+            if row:
+                old_category = row["category_label"]
+                is_manual = row["is_manual_category"]
+                
+                # If it wasn't manual before, or original_category is not set, set original_category
+                if is_manual == 0 or row["original_category"] is None:
+                    cursor.execute("""
+                    UPDATE media_files 
+                    SET category_label = ?, original_category = ?, is_manual_category = 1
+                    WHERE absolute_path = ?;
+                    """, (category_label, old_category, absolute_path))
+                else:
+                    cursor.execute("""
+                    UPDATE media_files 
+                    SET category_label = ?, is_manual_category = 1
+                    WHERE absolute_path = ?;
+                    """, (category_label, absolute_path))
+            conn.commit()
+
+    def get_manual_overrides(self):
+        """
+        Retrieves all manually overridden media files.
+        Returns a list of dicts with:
+            - features: list of 9 floats
+            - category_label: string (new category)
+            - original_category: string (old category)
+        """
+        import json
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            SELECT features, category_label, original_category
+            FROM media_files
+            WHERE is_manual_category = 1 AND features IS NOT NULL;
+            """)
+            results = []
+            for row in cursor.fetchall():
+                try:
+                    feat = json.loads(row["features"])
+                    if len(feat) == 9:
+                        results.append({
+                            "features": feat,
+                            "category_label": row["category_label"],
+                            "original_category": row["original_category"]
+                        })
+                except Exception:
+                    pass
+            return results
+
+    def get_training_data(self):
+        """
+        Retrieves all media files that have features extracted.
+        Returns:
+            list of feature vectors (lists of floats)
+            list of labels (strings)
+        """
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+            SELECT features, category_label
+            FROM media_files
+            WHERE features IS NOT NULL;
+            """)
+            features_list = []
+            labels_list = []
+            for row in cursor.fetchall():
+                try:
+                    import json
+                    feat = json.loads(row["features"])
+                    if len(feat) == 9:
+                        features_list.append(feat)
+                        labels_list.append(row["category_label"])
+                except Exception:
+                    pass
+            return features_list, labels_list
             
     def clear_cache(self):
         with self._get_connection() as conn:

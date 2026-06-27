@@ -1,5 +1,6 @@
 import os
 import sys
+import json
 import numpy as np
 import cv2
 from PIL import Image
@@ -18,7 +19,9 @@ from limo_project.engine.vision_core import (
     classify_image,
     generate_thumbnail,
     extract_faces_and_embeddings,
-    search_similar_faces
+    search_similar_faces,
+    extract_classification_features,
+    CategoryClassifier
 )
 
 class IndexThread(QThread):
@@ -82,15 +85,19 @@ class IndexThread(QThread):
                     continue
 
                 face_locations, face_encodings = extract_faces_and_embeddings(img_bgr)
-                category = classify_image(img_bgr, len(face_locations))
+                features_vec = extract_classification_features(img_bgr, len(face_locations))
+                category = classify_image(img_bgr, len(face_locations), features_list=features_vec)
                 thumbnail_blob = generate_thumbnail(img_bgr)
 
+                features_str = json.dumps(features_vec)
                 file_id = self.db.add_media_file(
                     absolute_path=file_path,
                     file_name=filename,
                     date_modified=mtime,
                     category_label=category,
-                    thumbnail_blob=thumbnail_blob
+                    thumbnail_blob=thumbnail_blob,
+                    features=features_str,
+                    is_manual_category=0
                 )
 
                 self.db.remove_embeddings_for_file(file_id)
@@ -186,7 +193,8 @@ class CategoryPill(QPushButton):
                 font-size: 11px;
             }
             QPushButton:hover {
-                border-color: #6c5ce7;
+                background-color: #242432;
+                border-color: #8a7df0;
                 color: #ffffff;
             }
             QPushButton:checked {
@@ -212,7 +220,8 @@ class ViewModePill(QPushButton):
                 font-size: 11px;
             }
             QPushButton:hover {
-                border-color: #6c5ce7;
+                background-color: #242432;
+                border-color: #8a7df0;
                 color: #ffffff;
             }
             QPushButton:checked {
@@ -231,6 +240,7 @@ class FolderTile(QWidget):
         self.absolute_path = absolute_path
         self.setFixedWidth(160)
         self.setFixedHeight(180)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -269,15 +279,16 @@ class FolderTile(QWidget):
         layout.addWidget(self.name_label)
         layout.addWidget(self.count_label)
 
+        self.setObjectName("FolderTile")
         self.setStyleSheet("""
-            QWidget {
+            QWidget#FolderTile {
                 background-color: #1e1e24;
                 border: 1px solid #2d2d38;
                 border-radius: 8px;
             }
-            QWidget:hover {
-                background-color: #262630;
-                border: 1px solid #6c5ce7;
+            QWidget#FolderTile:hover {
+                background-color: #262632;
+                border: 1px solid #e1b12c;
             }
         """)
 
@@ -292,6 +303,7 @@ class UpFolderTile(QWidget):
         super().__init__(parent)
         self.setFixedWidth(160)
         self.setFixedHeight(180)
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(10, 10, 10, 10)
@@ -334,15 +346,16 @@ class UpFolderTile(QWidget):
         layout.addWidget(self.name_label)
         layout.addStretch()
 
+        self.setObjectName("UpFolderTile")
         self.setStyleSheet("""
-            QWidget {
+            QWidget#UpFolderTile {
                 background-color: #1e1e24;
                 border: 1px solid #2d2d38;
                 border-radius: 8px;
             }
-            QWidget:hover {
-                background-color: #262630;
-                border: 1px solid #6c5ce7;
+            QWidget#UpFolderTile:hover {
+                background-color: #262632;
+                border: 1px solid #95a5a6;
             }
         """)
 
@@ -350,82 +363,104 @@ class UpFolderTile(QWidget):
         self.doubleClicked.emit()
 
 
-class SpinnerWidget(QWidget):
+
+
+
+class UserGuideDialog(QDialog):
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setFixedSize(50, 50)
-        self.angle = 0
+        self.setWindowTitle("LIMO User Guide")
+        self.setFixedSize(500, 480)
+        self.setWindowFlags(Qt.WindowType.Dialog | Qt.WindowType.CustomizeWindowHint | Qt.WindowType.WindowCloseButtonHint)
         
-        self.timer = QTimer(self)
-        self.timer.timeout.connect(self.rotate)
-        self.timer.start(30) # Rotate every 30ms
-
-    def rotate(self):
-        self.angle = (self.angle + 12) % 360
-        self.update()
-
-    def paintEvent(self, event):
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        pen = QPen(QColor("#6c5ce7"))
-        pen.setWidth(4)
-        painter.setPen(pen)
-        
-        rect = self.rect().adjusted(5, 5, -5, -5)
-        # Draw dynamic spinning arc (270 degrees length)
-        painter.drawArc(rect, self.angle * 16, 270 * 16)
-        painter.end()
-
-
-class LoadingOverlay(QWidget):
-    def __init__(self, parent=None):
-        super().__init__(parent)
-        self.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
-        self.setStyleSheet("background-color: rgba(12, 12, 16, 175);")
-        
-        if parent:
-            parent.installEventFilter(self)
-        
-        layout = QVBoxLayout(self)
-        layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        
-        self.container = QWidget(self)
-        self.container.setFixedSize(220, 140)
-        self.container.setStyleSheet("""
-            QWidget {
-                background-color: #1e1e24; 
-                border: 1px solid #2d2d38; 
-                border-radius: 8px;
+        self.setStyleSheet("""
+            QDialog {
+                background-color: #121216;
+                color: #e0e0e6;
+            }
+            QLabel {
+                color: #e0e0e6;
+            }
+            QPushButton {
+                background-color: #6c5ce7;
+                color: #ffffff;
+                border: none;
+                border-radius: 4px;
+                padding: 8px 20px;
+                font-weight: bold;
+            }
+            QPushButton:hover {
+                background-color: #5b4cc4;
+            }
+            QScrollArea {
+                border: 1px solid #272733;
+                background-color: #1a1a20;
+                border-radius: 6px;
             }
         """)
         
-        container_layout = QVBoxLayout(self.container)
-        container_layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        container_layout.setContentsMargins(15, 15, 15, 15)
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 20, 20, 20)
+        layout.setSpacing(12)
         
-        self.spinner = SpinnerWidget(self.container)
-        container_layout.addWidget(self.spinner, alignment=Qt.AlignmentFlag.AlignCenter)
+        # Title
+        title_label = QLabel("LIMO User Guide & Instructions", self)
+        title_label.setStyleSheet("font-size: 16px; font-weight: bold; color: #ffffff;")
+        title_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        layout.addWidget(title_label)
         
-        self.lbl_text = QLabel("Sorting & Filtering...", self.container)
-        self.lbl_text.setStyleSheet("color: #e0e0e6; font-weight: bold; font-size: 13px; border: none; background-color: transparent;")
-        self.lbl_text.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        container_layout.addWidget(self.lbl_text)
+        # Scroll Area for guide content
+        scroll = QScrollArea(self)
+        scroll.setWidgetResizable(True)
         
-        layout.addWidget(self.container)
-        self.hide()
+        content_widget = QWidget(scroll)
+        content_widget.setStyleSheet("background-color: transparent;")
+        content_layout = QVBoxLayout(content_widget)
+        content_layout.setContentsMargins(15, 15, 15, 15)
+        content_layout.setSpacing(12)
+        
+        guide_text = """
+<h3>🔑 Core Operations</h3>
+<p><b>1. Select Folder:</b> Click <i>Setup -> Select Media Folder...</i> to choose a directory. LIMO starts indexing and auto-categorizing photos in the background thread.</p>
+<p><b>2. Live Sync Dashboard:</b> View scan progress, <b>Pause</b>, or <b>Cancel</b> via the compact bar at the top of the interface.</p>
 
-    def eventFilter(self, obj, event):
-        if obj == self.parentWidget() and event.type() == QEvent.Type.Resize:
-            self.setGeometry(self.parentWidget().rect())
-        return super().eventFilter(obj, event)
+<h3>📂 Grid Navigation</h3>
+<p><b>1. View Modes:</b> Toggle between the flat <b>Library</b> list and yellow <b>Folders</b> directory group view using the header pills.</p>
+<p><b>2. Subfolder Navigation:</b> Double-click yellow folder cards to open subdirectories. Double-click the <i>.. (Up One Level)</i> card to go back.</p>
+<p><b>3. Sorting:</b> Use the sort dropdown to arrange media by Date (Newest/Oldest) or File Name (A-Z/Z-A).</p>
 
-    def showEvent(self, event):
-        if self.parentWidget():
-            self.setGeometry(self.parentWidget().rect())
-        super().showEvent(event)
+<h3>🧠 Multi-Photo Selection</h3>
+<p><b>1. Selection:</b> Left-click image cards to toggle selection. Selected photos display a glowing purple outline. The left panel shows the active selection count.</p>
+<p><b>2. Bulk Categorize:</b> Right-click any selected card, select <i>Change Category</i>, and select a target. This updates all selected items simultaneously and retrains the model.</p>
+<p><b>3. Quick Select:</b> Right-clicking an unselected card clears other choices and focuses only on that item.</p>
+
+<h3>🔎 Facial Search & Feedback</h3>
+<p><b>1. Drag & Drop Search:</b> Drag a face image into the <i>Facial Search</i> box (or click to browse). Use the slider to adjust Strictness Tolerance.</p>
+<p><b>2. Training the Model (👍/👎):</b> Tiles with lower match confidence show thumbs up/down icons:
+<ul>
+  <li>Click 👍 to add the face to the reference cluster, helping the model learn different angles and lighting.</li>
+  <li>Click 👎 to blacklist the face, removing it from results.</li>
+</ul>
+</p>
+
+<h3>🔄 Reinforcement Overrides</h3>
+<p>Changing an auto-classified category of an image teaches the classifier. Normalizing key properties (face counts, textures, text lines, sky percentages, and color distributions), the model dynamically adjusts candidate boundaries, correcting similar photos instantly!</p>
+"""
+        
+        lbl_content = QLabel(guide_text, self)
+        lbl_content.setWordWrap(True)
+        lbl_content.setTextFormat(Qt.TextFormat.RichText)
+        lbl_content.setStyleSheet("font-size: 12px; line-height: 18px; color: #b2bec3;")
+        content_layout.addWidget(lbl_content)
+        
+        content_widget.setLayout(content_layout)
+        scroll.setWidget(content_widget)
+        layout.addWidget(scroll)
+        
+        # Close Button
+        btn_close = QPushButton("Close Guide", self)
+        btn_close.clicked.connect(self.accept)
+        layout.addWidget(btn_close, alignment=Qt.AlignmentFlag.AlignCenter)
 
 
 class AboutDialog(QDialog):
@@ -520,11 +555,16 @@ class AboutDialog(QDialog):
 class ImageTile(QWidget):
     doubleClicked = pyqtSignal(str)
     feedbackClicked = pyqtSignal(str, int, int) # file_path, embedding_id, is_match
+    categoryChanged = pyqtSignal(str, str)      # file_path, new_category
+    selectionChanged = pyqtSignal(str, bool)     # file_path, is_selected
+    rightClicked = pyqtSignal(str)              # file_path
 
-    def __init__(self, file_path, name, category, thumbnail_blob, distance=None, embedding_id=None, parent=None):
+    def __init__(self, file_path, name, category, thumbnail_blob, distance=None, embedding_id=None, is_selected=False, parent=None):
         super().__init__(parent)
         self.file_path = file_path
         self.embedding_id = embedding_id
+        self.is_selected = is_selected
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
         
         self.has_feedback = (distance is not None and distance > 0.40 and embedding_id is not None)
 
@@ -632,26 +672,90 @@ class ImageTile(QWidget):
         else:
             layout.addStretch()
 
-        self.setStyleSheet("""
-            QWidget {
-                background-color: #1e1e24;
-                border: 1px solid #2d2d38;
-                border-radius: 6px;
-            }
-            QWidget:hover {
-                background-color: #262630;
-                border: 1px solid #6c5ce7;
-            }
-        """)
+        self.setObjectName("ImageTile")
+        self.update_style()
+
+        # Context Menu setup
+        self.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.customContextMenuRequested.connect(self.show_context_menu)
+
+    def update_style(self):
+        if self.is_selected:
+            self.setStyleSheet("""
+                QWidget#ImageTile {
+                    background-color: #242435;
+                    border: 2px solid #8a7df0;
+                    border-radius: 6px;
+                }
+            """)
+        else:
+            self.setStyleSheet("""
+                QWidget#ImageTile {
+                    background-color: #1e1e24;
+                    border: 1px solid #2d2d38;
+                    border-radius: 6px;
+                }
+                QWidget#ImageTile:hover {
+                    background-color: #262632;
+                    border: 1px solid #8a7df0;
+                }
+            """)
+
+    def setSelected(self, selected):
+        self.is_selected = selected
+        self.update_style()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.MouseButton.LeftButton:
+            # Toggle selection
+            self.setSelected(not self.is_selected)
+            self.selectionChanged.emit(self.file_path, self.is_selected)
+        elif event.button() == Qt.MouseButton.RightButton:
+            self.rightClicked.emit(self.file_path)
+        super().mousePressEvent(event)
 
     def mouseDoubleClickEvent(self, event):
         self.doubleClicked.emit(self.file_path)
+
+    def show_context_menu(self, pos):
+        menu = QMenu(self)
+        menu.setStyleSheet("""
+            QMenu {
+                background-color: #1a1a20;
+                border: 1px solid #272733;
+                color: #e0e0e6;
+            }
+            QMenu::item {
+                padding: 8px 24px;
+            }
+            QMenu::item:selected {
+                background-color: #6c5ce7;
+                color: #ffffff;
+            }
+        """)
+        
+        open_action = QAction("Open Photo", self)
+        open_action.triggered.connect(lambda: self.doubleClicked.emit(self.file_path))
+        menu.addAction(open_action)
+        
+        cat_menu = QMenu("Change Category", menu)
+        cat_menu.setStyleSheet(menu.styleSheet())
+        
+        categories = ["Portrait", "Couple", "Group", "Landscape", "Documents", "Uncategorized"]
+        for cat in categories:
+            act = QAction(cat, self)
+            act.triggered.connect(lambda checked, c=cat: self.categoryChanged.emit(self.file_path, c))
+            cat_menu.addAction(act)
+            
+        menu.addMenu(cat_menu)
+        menu.exec(self.mapToGlobal(pos))
 
 
 class MainWindow(QMainWindow):
     def __init__(self, db_path="face_index.db"):
         super().__init__()
         self.db = DatabaseManager(db_path)
+        CategoryClassifier.train_model(self.db)
         self.index_thread = None
         self.ref_embedding = None
         self.ref_file_path = None
@@ -661,8 +765,19 @@ class MainWindow(QMainWindow):
         self.view_mode = "library"
         self.current_folder = None
         
-        self.categories_list = ["All", "Portraits", "Landscapes", "Screenshots/Documents", "Uncategorized"]
+        self.categories_list = ["All", "Portrait", "Couple", "Group", "Landscape", "Documents", "Uncategorized"]
         self.selected_category = "All"
+        self.selected_files = set()  # Track multi-selected paths
+        
+        self.loading_timer = QTimer(self)
+        self.loading_timer.timeout.connect(self.load_next_batch)
+        
+        self.loading_timer_folders = QTimer(self)
+        self.loading_timer_folders.timeout.connect(self.load_next_folder_batch)
+        
+        self.live_refresh_timer = QTimer(self)
+        self.live_refresh_timer.setSingleShot(True)
+        self.live_refresh_timer.timeout.connect(self.trigger_search)
 
         self.setWindowTitle("Local Intelligent Media Organizer (LIMO)")
         self.resize(1100, 750)
@@ -807,8 +922,15 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         setup_menu.addAction(exit_action)
 
-        # About Menu
+        # Help & User Guide Menu
         help_menu = menubar.addMenu("Help")
+        
+        guide_action = QAction("User Guide...", self)
+        guide_action.triggered.connect(self.show_user_guide_dialog)
+        help_menu.addAction(guide_action)
+        
+        help_menu.addSeparator()
+        
         about_action = QAction("About LIMO...", self)
         about_action.triggered.connect(self.show_about_dialog)
         help_menu.addAction(about_action)
@@ -857,7 +979,8 @@ class MainWindow(QMainWindow):
         self.btn_cancel_sync.clicked.connect(self.cancel_sync)
         sync_layout.addWidget(self.btn_cancel_sync)
 
-        main_layout.addWidget(self.sync_dashboard)
+        self.sync_dashboard.setFixedHeight(45)
+        main_layout.addWidget(self.sync_dashboard, 0)
 
         splitter = QSplitter(Qt.Orientation.Horizontal, self)
         
@@ -922,6 +1045,11 @@ class MainWindow(QMainWindow):
         self.setup_category_filters()
         header_controls_layout.addWidget(self.category_container)
 
+        self.lbl_grid_loading = QLabel(self)
+        self.lbl_grid_loading.setStyleSheet("color: #8a7df0; font-weight: bold; font-size: 12px; margin-left: 10px;")
+        self.lbl_grid_loading.setVisible(False)
+        header_controls_layout.addWidget(self.lbl_grid_loading)
+
         header_controls_layout.addStretch()
 
         # Sorting ComboBox Selector
@@ -969,10 +1097,7 @@ class MainWindow(QMainWindow):
         splitter.addWidget(right_panel)
         
         splitter.setSizes([280, 820])
-        main_layout.addWidget(splitter)
-
-        # Loading Overlay (Instantiated on central widget to cover the whole UI layout)
-        self.loading_overlay = LoadingOverlay(central_widget)
+        main_layout.addWidget(splitter, 1)
 
     def setup_category_filters(self):
         while self.category_layout.count():
@@ -1147,6 +1272,10 @@ class MainWindow(QMainWindow):
         self.index_thread.stop()
         self.status_label.setText("Sync cancelled. Cleaning up thread...")
 
+    def show_user_guide_dialog(self):
+        dialog = UserGuideDialog(self)
+        dialog.exec()
+
     def show_about_dialog(self):
         dialog = AboutDialog(self)
         dialog.exec()
@@ -1155,9 +1284,14 @@ class MainWindow(QMainWindow):
         if not self.is_background_sync:
             self.progress_bar.setValue(step)
             self.status_label.setText(f"Scanning: {os.path.basename(filepath)}")
+            
+        # Throttled live update of the grid while scanning
+        if not self.live_refresh_timer.isActive():
+            self.live_refresh_timer.start(1200)
 
     def on_index_finished(self, added, skipped):
         self.sync_dashboard.setVisible(False)
+        self.live_refresh_timer.stop()
         
         if not self.is_background_sync:
             self.status_label.setText("Sync complete.")
@@ -1250,14 +1384,18 @@ class MainWindow(QMainWindow):
             self.trigger_search()
 
     def trigger_search(self):
-        # 1. Show the loading overlay
-        if self.centralWidget():
-            self.loading_overlay.setGeometry(self.centralWidget().rect())
-        self.loading_overlay.show()
-        self.loading_overlay.raise_()
+        # Stop any active incremental loading timers
+        if hasattr(self, 'loading_timer') and self.loading_timer.isActive():
+            self.loading_timer.stop()
+        if hasattr(self, 'loading_timer_folders') and self.loading_timer_folders.isActive():
+            self.loading_timer_folders.stop()
+            
+        self.selected_files.clear()  # Clear selection on search
+        self.lbl_grid_loading.setText("Searching...")
+        self.lbl_grid_loading.setVisible(True)
         
-        # 2. Schedule the search & sorting computation 50ms later to allow overlay painting
-        QTimer.singleShot(50, self.perform_search_and_populate)
+        # Schedule the search & sorting computation 10ms later to keep UI fluid
+        QTimer.singleShot(10, self.perform_search_and_populate)
 
     def perform_search_and_populate(self):
         try:
@@ -1286,13 +1424,9 @@ class MainWindow(QMainWindow):
             elif sort_type == "Sort: Name (Z-A)":
                 items.sort(key=lambda x: x.get("file_name", "").lower(), reverse=True)
 
-            # Render
+            # Populate dynamically (starts the incremental timers)
             if self.view_mode == "library":
                 self.populate_grid(items)
-                if self.ref_embedding is not None:
-                    self.status_label.setText(f"Search results: {len(items)} matching face(s) found.")
-                else:
-                    self.status_label.setText(f"Showing {len(items)} file(s).")
             else:
                 if self.current_folder is None:
                     folders_dict = {}
@@ -1307,14 +1441,12 @@ class MainWindow(QMainWindow):
                     folder_paths.sort(key=lambda x: os.path.basename(x).lower(), reverse=is_reverse)
                     
                     self.populate_folder_grid(folders_dict, folder_paths)
-                    self.status_label.setText(f"Showing {len(folder_paths)} folders.")
                 else:
                     folder_items = [item for item in items if os.path.dirname(item["absolute_path"]) == self.current_folder]
                     self.populate_grid(folder_items, show_up_level=True)
-                    self.status_label.setText(f"Showing {len(folder_items)} file(s) in '{os.path.basename(self.current_folder)}'.")
-        finally:
-            # 3. Hide loading overlay
-            self.loading_overlay.hide()
+        except Exception as e:
+            print(f"Error performing search: {e}")
+            self.lbl_grid_loading.setVisible(False)
 
     def on_feedback_received(self, file_path, embedding_id, is_match):
         if not self.ref_file_path:
@@ -1324,6 +1456,43 @@ class MainWindow(QMainWindow):
         action = "confirmed as match 👍" if is_match == 1 else "rejected as match 👎"
         self.status_label.setText(f"Feedback recorded: Face {action}. Reinforcing search model...")
         self.trigger_search()
+
+    def on_category_changed_manually(self, file_path, new_category):
+        targets = list(self.selected_files)
+        if not targets or file_path not in self.selected_files:
+            targets = [file_path]
+            
+        for path in targets:
+            self.db.update_media_category(path, new_category)
+            
+        CategoryClassifier.train_model(self.db)
+        self.selected_files.clear()
+        self.status_label.setText(f"Category of {len(targets)} photo(s) modified to '{new_category}'. ML model reinforced.")
+        self.trigger_search()
+
+    def on_tile_selection_changed(self, file_path, is_selected):
+        if is_selected:
+            self.selected_files.add(file_path)
+        else:
+            self.selected_files.discard(file_path)
+            
+        if self.selected_files:
+            self.status_label.setText(f"Selected {len(self.selected_files)} photo(s) to categorize.")
+        else:
+            self.status_label.setText("Ready.")
+
+    def on_tile_right_clicked(self, file_path):
+        if file_path not in self.selected_files:
+            self.select_single_file_for_menu(file_path)
+
+    def select_single_file_for_menu(self, file_path):
+        self.selected_files.clear()
+        self.selected_files.add(file_path)
+        for i in range(self.grid_layout.count()):
+            item = self.grid_layout.itemAt(i)
+            widget = item.widget()
+            if isinstance(widget, ImageTile):
+                widget.setSelected(widget.file_path == file_path)
 
     def load_all_media_from_db(self):
         self.trigger_search()
@@ -1336,54 +1505,108 @@ class MainWindow(QMainWindow):
 
     def populate_grid(self, items, show_up_level=False):
         self.clear_grid()
+        self.loading_items = items
+        self.loading_index = 0
+        self.loading_show_up_level = show_up_level
+        self.selected_files.clear()
+        
+        self.lbl_grid_loading.setText("Loading...")
+        self.lbl_grid_loading.setVisible(True)
+        self.loading_timer.start(15) # Render batch every 15ms
 
+    def load_next_batch(self):
+        if not self.loading_items or self.loading_index >= len(self.loading_items):
+            self.loading_timer.stop()
+            self.lbl_grid_loading.setVisible(False)
+            total = len(self.loading_items)
+            if self.view_mode == "library":
+                if self.ref_embedding is not None:
+                    self.status_label.setText(f"Search results: {total} matching face(s) found.")
+                else:
+                    self.status_label.setText(f"Showing {total} file(s).")
+            else:
+                self.status_label.setText(f"Showing {total} file(s) in '{os.path.basename(self.current_folder)}'.")
+            return
+
+        batch_size = 15
+        end_idx = min(self.loading_index + batch_size, len(self.loading_items))
+        
         width = self.scroll_area.viewport().width()
         if width <= 0:
             width = 820
         tile_width = 175
         columns = max(1, width // tile_width)
-
-        start_idx = 0
-        if show_up_level:
+        
+        start_pos = 1 if self.loading_show_up_level else 0
+        if self.loading_show_up_level and self.loading_index == 0:
             up_tile = UpFolderTile(self)
             up_tile.doubleClicked.connect(self.exit_folder)
             self.grid_layout.addWidget(up_tile, 0, 0)
-            start_idx = 1
-
-        for idx, item in enumerate(items):
+            
+        for idx in range(self.loading_index, end_idx):
+            item = self.loading_items[idx]
+            path = item["absolute_path"]
+            is_sel = path in self.selected_files
             tile = ImageTile(
-                file_path=item["absolute_path"],
+                file_path=path,
                 name=item["file_name"],
                 category=item["category_label"],
                 thumbnail_blob=item["thumbnail_blob"],
                 distance=item.get("distance", None),
                 embedding_id=item.get("embedding_id", None),
+                is_selected=is_sel,
                 parent=self
             )
             tile.doubleClicked.connect(self.open_file_in_explorer)
             tile.feedbackClicked.connect(self.on_feedback_received)
+            tile.categoryChanged.connect(self.on_category_changed_manually)
+            tile.selectionChanged.connect(self.on_tile_selection_changed)
+            tile.rightClicked.connect(self.on_tile_right_clicked)
             
-            grid_pos = start_idx + idx
+            grid_pos = start_pos + idx
             row = grid_pos // columns
             col = grid_pos % columns
             self.grid_layout.addWidget(tile, row, col)
+            
+        self.loading_index = end_idx
+        self.lbl_grid_loading.setText(f"Loading {self.loading_index}/{len(self.loading_items)}...")
 
     def populate_folder_grid(self, folders_dict, sorted_paths):
         self.clear_grid()
         if not sorted_paths:
             return
+            
+        self.loading_items = sorted_paths
+        self.loading_index = 0
+        self.loading_folders_dict = folders_dict
+        self.selected_files.clear()
+        
+        self.lbl_grid_loading.setText("Loading folders...")
+        self.lbl_grid_loading.setVisible(True)
+        self.loading_timer_folders.start(15)
 
+    def load_next_folder_batch(self):
+        if not self.loading_items or self.loading_index >= len(self.loading_items):
+            self.loading_timer_folders.stop()
+            self.lbl_grid_loading.setVisible(False)
+            self.status_label.setText(f"Showing {len(self.loading_items)} folders.")
+            return
+
+        batch_size = 15
+        end_idx = min(self.loading_index + batch_size, len(self.loading_items))
+        
         width = self.scroll_area.viewport().width()
         if width <= 0:
             width = 820
         tile_width = 175
         columns = max(1, width // tile_width)
-
-        for idx, path in enumerate(sorted_paths):
+        
+        for idx in range(self.loading_index, end_idx):
+            path = self.loading_items[idx]
             name = os.path.basename(path)
             if not name:
                 name = path
-            count = len(folders_dict[path])
+            count = len(self.loading_folders_dict[path])
             
             tile = FolderTile(absolute_path=path, name=name, file_count=count, parent=self)
             tile.doubleClicked.connect(self.enter_folder)
@@ -1391,6 +1614,9 @@ class MainWindow(QMainWindow):
             row = idx // columns
             col = idx % columns
             self.grid_layout.addWidget(tile, row, col)
+            
+        self.loading_index = end_idx
+        self.lbl_grid_loading.setText(f"Loading {self.loading_index}/{len(self.loading_items)}...")
 
     def rearrange_grid(self):
         width = self.scroll_area.viewport().width()
