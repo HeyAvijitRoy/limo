@@ -24,6 +24,12 @@ from limo_project.engine.vision_core import (
     CategoryClassifier
 )
 
+
+def get_logo_path():
+    base_dir = getattr(sys, "_MEIPASS", os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+    return os.path.join(base_dir, "installer", "logo.png")
+
+
 class IndexThread(QThread):
     progress_max = pyqtSignal(int)
     progress_step = pyqtSignal(int, str)
@@ -498,16 +504,9 @@ class AboutDialog(QDialog):
         # Logo widget
         self.logo_label = QLabel(self)
         self.logo_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        pixmap = QPixmap(64, 64)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor("#6c5ce7"))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(2, 2, 60, 60)
-        painter.setBrush(QColor("#121216"))
-        painter.drawEllipse(18, 18, 28, 28)
-        painter.end()
+        pixmap = QPixmap(get_logo_path()).scaled(
+            64, 64, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation
+        )
         self.logo_label.setPixmap(pixmap)
         layout.addWidget(self.logo_label)
         
@@ -780,6 +779,7 @@ class MainWindow(QMainWindow):
         self.live_refresh_timer.timeout.connect(self.trigger_search)
 
         self.setWindowTitle("Local Intelligent Media Organizer (LIMO)")
+        self.setWindowIcon(QIcon(get_logo_path()))
         self.resize(1100, 750)
         
         self.setup_styles()
@@ -1061,7 +1061,7 @@ class MainWindow(QMainWindow):
             "Sort: Name (Z-A)"
         ])
         self.combo_sort.currentTextChanged.connect(self.trigger_search)
-        self.combo_sort.setFixedWidth(150)
+        self.combo_sort.setFixedWidth(170)
         header_controls_layout.addWidget(self.combo_sort)
 
         # View Mode toggle button group
@@ -1154,19 +1154,7 @@ class MainWindow(QMainWindow):
 
     def init_system_tray(self):
         self.tray_icon = QSystemTrayIcon(self)
-        
-        pixmap = QPixmap(32, 32)
-        pixmap.fill(Qt.GlobalColor.transparent)
-        painter = QPainter(pixmap)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setBrush(QColor("#6c5ce7"))
-        painter.setPen(Qt.PenStyle.NoPen)
-        painter.drawEllipse(2, 2, 28, 28)
-        painter.setBrush(QColor("#ffffff"))
-        painter.drawEllipse(10, 10, 12, 12)
-        painter.end()
-        
-        self.tray_icon.setIcon(QIcon(pixmap))
+        self.tray_icon.setIcon(QIcon(get_logo_path()))
         self.tray_icon.setToolTip("Local Intelligent Media Organizer (LIMO)")
 
         tray_menu = QMenu()
