@@ -8,6 +8,8 @@
 
 A premium, privacy-focused desktop utility designed to index, organize, filter, and search your personal photo library entirely offline. LIMO leverages local computer vision models, heuristics, and reinforcement learning loops to cluster faces and auto-categorize media without ever connecting to the internet.
 
+Built by <a href="https://avijitroy.com" target="_blank" rel="noopener noreferrer">Avijit Roy</a>.
+
 ---
 
 ## 🌟 Key Features
@@ -89,6 +91,26 @@ python limo_project/main.py
 
 Requires [Inno Setup 6](https://jrsoftware.org/isinfo.php) installed, plus the venv from above with `pyinstaller` installed (`pip install pyinstaller`).
 
+Install Inno Setup 6 from PowerShell if it is not already installed:
+```powershell
+winget install --id JRSoftware.InnoSetup -e --source winget --accept-package-agreements --accept-source-agreements
+```
+
+Before compiling the installer, locate `ISCC.exe`. Inno Setup may install system-wide under `Program Files` or per-user under `%LOCALAPPDATA%`:
+```powershell
+$ISCC = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
+if (-not $ISCC) {
+    $ISCC = @(
+        "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+        "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+        "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
+    ) | Where-Object { Test-Path $_ } | Select-Object -First 1
+}
+if (-not $ISCC) {
+    throw "ISCC.exe not found. Install Inno Setup 6 or set `$ISCC to the full compiler path."
+}
+```
+
 From the project root, in PowerShell:
 ```powershell
 # 1. Build the app exe via the project venv (use the venv's python, not a global
@@ -100,8 +122,8 @@ Remove-Item -Recurse -Force build, dist -ErrorAction SilentlyContinue
 # 2. Copy the freshly built exe into the installer folder
 Copy-Item dist\LIMO.exe installer\LIMO.exe -Force
 
-# 3. Compile the installer with Inno Setup (adjust the path to wherever ISCC.exe is installed)
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\limo.iss
+# 3. Compile the installer with Inno Setup
+& $ISCC installer\limo.iss
 ```
 The final installer is written to `installer\LIMO_Setup.exe` — that single file is all you need to distribute a release.
 
