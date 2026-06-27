@@ -34,3 +34,10 @@ Desktop.ini
 
 .log
 *.log
+
+# Build artifacts (PyInstaller)
+build/
+dist/
+
+# Compiled executables and installers
+*.exe
